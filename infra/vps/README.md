@@ -11,20 +11,20 @@ Workflow пушит образ в:
 ### Подготовка VPS (один раз)
 1) Создать директории:
 ```bash
-sudo mkdir -p /opt/mathtrain/staging /opt/mathtrain/prod
-sudo chown -R "$USER":"$USER" /opt/mathtrain
+sudo mkdir -p /opt/math_trainer/staging /opt/math_trainer/prod
+sudo chown -R "$USER":"$USER" /opt/math_trainer
 ```
 
 2) Положить compose файлы:
 ```bash
-cp infra/vps/staging/compose.yml /opt/mathtrain/staging/compose.yml
-cp infra/vps/prod/compose.yml /opt/mathtrain/prod/compose.yml
+cp infra/vps/staging/compose.yml /opt/math_trainer/staging/compose.yml
+cp infra/vps/prod/compose.yml /opt/math_trainer/prod/compose.yml
 ```
 
 3) Создать `.env` для каждого окружения (НЕ коммитить):
 ```bash
-cp infra/vps/staging.env.example /opt/mathtrain/staging/.env
-cp infra/vps/prod.env.example /opt/mathtrain/prod/.env
+cp infra/vps/staging.env.example /opt/math_trainer/staging/.env
+cp infra/vps/prod.env.example /opt/math_trainer/prod/.env
 ```
 Отредактировать пароли и `DATABASE_URL`.
 
@@ -42,8 +42,8 @@ docker login ghcr.io
 
 ### Первый запуск (вручную)
 ```bash
-cd /opt/mathtrain/staging && docker compose -f compose.yml pull && docker compose -f compose.yml up -d
-cd /opt/mathtrain/prod && docker compose -f compose.yml pull && docker compose -f compose.yml up -d
+cd /opt/math_trainer/staging && docker compose -f compose.yml pull && docker compose -f compose.yml up -d
+cd /opt/math_trainer/prod && docker compose -f compose.yml pull && docker compose -f compose.yml up -d
 ```
 
 ### Проверка

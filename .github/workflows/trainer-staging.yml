@@ -47,7 +47,7 @@ jobs:
           port: ${{ secrets.VPS_SSH_PORT }}
           script: |
             set -euo pipefail
-            cd /opt/mathtrain/staging
+            cd /opt/math_trainer/staging
             docker compose -f compose.yml pull
             docker compose -f compose.yml up -d
             docker compose -f compose.yml ps

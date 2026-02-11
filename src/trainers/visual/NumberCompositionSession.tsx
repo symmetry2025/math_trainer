@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../../lib/utils';
 import type { SessionMetrics } from '../../trainerFlow';
@@ -125,9 +125,11 @@ export function NumberCompositionSession(props: {
 
   const problem = engine.problem ?? null;
 
-  useEffect(() => {
-    setInputValue('');
-  }, [engine.index]);
+  // IMPORTANT: clear input before paint when switching to next problem,
+  // otherwise the next card may briefly show the previous input for 1 frame.
+  useLayoutEffect(() => {
+    if (engine.selectedAnswer === null && engine.status === null) setInputValue('');
+  }, [engine.index, engine.selectedAnswer, engine.status]);
 
   const handleKeyboardInput = useCallback(
     (value: number) => {
@@ -155,11 +157,6 @@ export function NumberCompositionSession(props: {
     onDigit: handleKeyboardInput,
     onBackspace: handleBackspace,
   });
-
-  useEffect(() => {
-    // Clear input when engine unlocks after wrong attempt or advances to next problem.
-    if (engine.selectedAnswer === null && engine.status === null) setInputValue('');
-  }, [engine.index, engine.selectedAnswer, engine.status]);
 
   useEffect(() => {
     if (!problem) return;
@@ -250,6 +247,7 @@ export function NumberCompositionSession(props: {
           <NumberKeyboard
             disabled={engine.selectedAnswer !== null}
             showBackspace={true}
+            backspaceEnabled={inputValue.length > 0}
             onBackspace={handleBackspace}
             onInput={(n) => handleKeyboardInput(n)}
           />

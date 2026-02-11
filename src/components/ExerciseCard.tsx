@@ -155,17 +155,17 @@ export function ExerciseCard(props: {
         className={cn(
           // Make long Russian titles fit in exactly 2 lines without breaking words.
           isLongTitle
-            ? 'text-[9px] sm:text-[10px] md:text-[13px] font-medium leading-tight tracking-tighter'
-            : 'text-[10px] sm:text-[11px] md:text-sm font-semibold leading-snug tracking-tight',
+        ? 'text-[11px] sm:text-[11px] md:text-[13px] font-medium leading-snug tracking-tight'
+        : 'text-[12px] sm:text-[12px] md:text-sm font-semibold leading-snug tracking-tight',
           'text-foreground',
           'mt-3 w-full px-1 whitespace-normal break-normal hyphens-none',
-          'line-clamp-2 min-h-[2.5rem]',
+      'line-clamp-2 md:min-h-[2.5rem]',
         )}
       >
         {props.title}
       </h4>
 
-      <p className="relative z-10 text-[10px] md:text-xs text-muted-foreground mt-0.5 w-full px-1 whitespace-normal break-normal hyphens-none line-clamp-2 min-h-[2.2rem]">
+  <p className="relative z-10 text-[11px] md:text-xs text-muted-foreground mt-0.5 w-full px-1 whitespace-normal break-normal hyphens-none line-clamp-2 md:min-h-[2.2rem]">
         {props.description ? props.description : '\u00A0'}
       </p>
 

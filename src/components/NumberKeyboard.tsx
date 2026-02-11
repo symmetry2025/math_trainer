@@ -9,10 +9,12 @@ export interface NumberKeyboardProps {
   onBackspace?: () => void;
   disabled?: boolean;
   showBackspace?: boolean;
+  backspaceEnabled?: boolean;
 }
 
-export default function NumberKeyboard({ onInput, onBackspace, disabled, showBackspace }: NumberKeyboardProps) {
-  const withBackspace = !!showBackspace && typeof onBackspace === 'function';
+export default function NumberKeyboard({ onInput, onBackspace, disabled, showBackspace, backspaceEnabled }: NumberKeyboardProps) {
+  const withBackspace = typeof onBackspace === 'function' && showBackspace !== false;
+  const isBackspaceEnabled = withBackspace && backspaceEnabled !== false && !disabled;
   const numbers: Array<Array<number | 'backspace' | null>> = [
     [7, 8, 9],
     [4, 5, 6],
@@ -40,14 +42,14 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
             <button
               key="backspace"
               type="button"
-              onClick={onBackspace}
+              onClick={isBackspaceEnabled ? onBackspace : undefined}
               onMouseDown={(e) => e.currentTarget.classList.add('scale-95')}
               onMouseUp={(e) => e.currentTarget.classList.remove('scale-95')}
               onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}
               onTouchStart={(e) => e.currentTarget.classList.add('scale-95')}
               onTouchEnd={(e) => e.currentTarget.classList.remove('scale-95')}
               onTouchCancel={(e) => e.currentTarget.classList.remove('scale-95')}
-              disabled={disabled}
+              disabled={!isBackspaceEnabled}
               className={cn(
                 'w-[var(--kb-key)] h-[var(--kb-key)] rounded-xl flex items-center justify-center select-none',
                 'bg-muted border-2 border-border',

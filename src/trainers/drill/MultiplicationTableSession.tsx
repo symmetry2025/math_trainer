@@ -267,7 +267,8 @@ export function MultiplicationTableSession(props: {
             <div className="space-y-3">
               <NumberKeyboard
                 disabled={engine.selectedAnswer !== null}
-                showBackspace={problem.answer >= 10}
+                showBackspace={true}
+                backspaceEnabled={problem.answer >= 10 && manualAnswer.length > 0}
                 onBackspace={() => setManualAnswer((v) => v.slice(0, -1))}
                 onInput={(n) => setManualAnswer((v) => (v + String(n)).slice(0, 3))}
               />

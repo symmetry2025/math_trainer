@@ -268,7 +268,8 @@ export default function MentalMathSession(props: {
           <NumberKeyboard
             onInput={(n) => handleKeyboardInput(n)}
             onBackspace={handleBackspace}
-            showBackspace={problem.answer >= 10}
+            showBackspace={true}
+            backspaceEnabled={problem.answer >= 10 && inputValue.length > 0}
             disabled={engine.selectedAnswer !== null}
           />
         ) : null

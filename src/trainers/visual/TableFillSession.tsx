@@ -249,6 +249,7 @@ export function TableFillSession(props: {
           <NumberKeyboard
             disabled={engine.selectedAnswer !== null}
             showBackspace={true}
+            backspaceEnabled={inputValue.length > 0}
             onBackspace={handleBackspace}
             onInput={(n) => handleKeyboardInput(n)}
           />

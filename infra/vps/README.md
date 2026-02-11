@@ -1,7 +1,7 @@
 ## math-trainer.ru (VPS) — staging/prod
 
 ### Два окружения
-- **staging**: `stagging.math-trainer.ru` → image tag `staging` (обновляется по merge в `main`)
+- **staging**: `staging.math-trainer.ru` → image tag `staging` (обновляется по merge в `main`)
 - **prod**: `math-trainer.ru` → image tag `vX.Y.Z` (обновляется по git tag)
 
 ### GHCR image

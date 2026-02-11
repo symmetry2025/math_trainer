@@ -574,6 +574,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
             opponentProgressPct={sessionMetrics.opponentProgressPct}
             opponentLabel={opponentText ? `Соперник: ${opponentText.value}` : undefined}
             selfLabel={typeof sessionMetrics.opponentProgressPct === 'number' ? 'Ты' : undefined}
+            progressWrapperClassName={typeof sessionMetrics.opponentProgressPct === 'number' ? undefined : 'hidden md:block'}
           >
             {definition.renderSession({
               config,

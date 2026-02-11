@@ -7,6 +7,10 @@ RUN corepack enable
 
 WORKDIR /app
 
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY . .
 
 RUN pnpm -s install --frozen-lockfile
@@ -24,6 +28,10 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 WORKDIR /app
+
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app /app
 RUN chmod +x /app/scripts/docker-entrypoint.sh

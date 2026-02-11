@@ -1,0 +1,56 @@
+import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import type { Role } from '@prisma/client';
+
+import { prisma } from '../../../../../lib/db';
+import { AUTH_COOKIE_NAME, expiresAtFromNow, hashToken, newToken } from '../../../../../lib/auth';
+
+const DEMO_EMAIL_BY_ROLE: Record<Role, string> = {
+  student: 'demo.student@trainer.local',
+  parent: 'demo.parent@trainer.local',
+  admin: 'demo.admin@trainer.local',
+};
+
+function devOnly() {
+  // Defense-in-depth: never allow this endpoint in prod.
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+  return null;
+}
+
+export async function POST(_req: Request, ctx: { params: { role: string } }) {
+  const blocked = devOnly();
+  if (blocked) return blocked;
+
+  const role = ctx?.params?.role;
+  const isRole = role === 'student' || role === 'parent' || role === 'admin';
+  if (!isRole) return NextResponse.json({ error: 'invalid_role' }, { status: 400 });
+
+  const email = DEMO_EMAIL_BY_ROLE[role];
+
+  // We don't expose passwords for demo users. They exist only to satisfy schema invariants.
+  const passwordHash = await bcrypt.hash(newToken(), 10);
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: { role },
+    create: { email, role, passwordHash },
+    select: { id: true, email: true, role: true },
+  });
+
+  const token = newToken();
+  await prisma.session.create({
+    data: { userId: user.id, tokenHash: hashToken(token), expiresAt: expiresAtFromNow() },
+  });
+
+  const res = NextResponse.json({ user });
+  res.cookies.set(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  });
+  return res;
+}
+

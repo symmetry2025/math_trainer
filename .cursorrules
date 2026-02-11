@@ -1,0 +1,11 @@
+# Symmetry Trainer — Cursor rules
+#
+# Goal: standalone trainers product with its own DB/auth/landing.
+# IMPORTANT: do NOT put secrets here.
+
+## Process (must-follow)
+- No secrets committed; only `.env.example` and docs.
+- FE ↔ BE must be same domain; API must be under `/api/*`.
+- Frontend requests must use `credentials: 'include'`.
+- Server-side RBAC is source of truth. Client-side guards are UX only.
+

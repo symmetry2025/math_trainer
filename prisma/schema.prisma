@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  parent
+  student
+  admin
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(student)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions Session[]
+  trainerProgress TrainerProgress[]
+  trainerAttempts TrainerAttempt[]
+  achievements UserAchievement[]
+  stats UserStats?
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Aggregated per-trainer progress (unlock state, stars, etc.).
+// Stored as JSON to support different trainer families (column, mental-math, etc.).
+model TrainerProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  trainerId String
+  progress  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trainerId])
+  @@index([userId])
+  @@index([trainerId])
+}
+
+// Immutable attempt log for stats/achievements (success/fail history).
+model TrainerAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  trainerId String
+  attemptId String?
+  kind      String   // e.g. "column" | "mental"
+  level     String   // e.g. "accuracy" | "speed" | "race" | "accuracy-choice"
+  result    Json     // {correct,total,mistakes,time,won,stars,...}
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([trainerId])
+  @@index([createdAt])
+  @@unique([userId, trainerId, attemptId])
+}
+
+// Per-user achievement progress/unlock state (incrementally updated per attempt).
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  progress      Json
+  unlockedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+}
+
+// Cheap per-user aggregates for stats/achievements (avoid scanning attempts history).
+model UserStats {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  totalProblems       Int      @default(0)
+  totalCorrect        Int      @default(0)
+  totalMistakes       Int      @default(0)
+  totalTimeSec        Int      @default(0)
+  sessionsCount       Int      @default(0)
+  perfectSessionsCount Int     @default(0)
+  raceWinsCount       Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+

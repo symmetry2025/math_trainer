@@ -83,9 +83,11 @@ export function NumberCompositionSession(props: {
 
   const isSpeed = props.level === 'speed';
   const isRace = props.level === 'race';
+  const [opponentProgressPct, setOpponentProgressPct] = useState(0);
   const totalSeconds = Math.max(1, Math.floor(Number(props.timeLimitSec || 60)));
   const starLevel = (props.starLevel ?? 1) as 1 | 2 | 3;
   const npcSecondsPerProblem = Math.max(1, Number(props.npcSecondsPerProblem || 6));
+  const opponentTitle = starLevel === 1 ? 'Новичок' : starLevel === 2 ? 'Знаток' : 'Мастер';
 
   const finishedRef = useMemo(() => ({ done: false }), []);
   const emitFinishOnce = useCallback(
@@ -170,21 +172,24 @@ export function NumberCompositionSession(props: {
     const solved = Math.max(0, Math.min(total, engine.correctCount));
     const progressPct = total > 0 ? Math.round((solved / total) * 100) : 0;
     const correctFirstTry = Math.max(0, solved - wrongUniqueRef.current.size);
+    const counterCurrent = isRace ? solved : Math.min(total, engine.index + 1);
     props.setMetrics({
       progressPct,
+      opponentProgressPct: isRace ? opponentProgressPct : undefined,
       total,
       solved,
       correct: correctFirstTry,
       mistakes: engine.mistakesCount,
       badges: [
-        { kind: 'counter', label: 'Пример', current: Math.min(total, engine.index + 1), total },
+        { kind: 'counter', label: 'Пример', current: counterCurrent, total },
         ...(isSpeed && typeof engine.remainingSec === 'number' && typeof engine.totalSeconds === 'number'
           ? ([{ kind: 'time', label: 'Время', seconds: engine.remainingSec, mode: 'remaining', totalSeconds: engine.totalSeconds }] as const)
           : ([{ kind: 'time', label: 'Время', seconds: engine.elapsedSec, mode: 'elapsed' }] as const)),
         { kind: 'mistakes', label: 'Ошибки', value: engine.mistakesCount },
+        ...(isRace ? ([{ kind: 'text', label: 'Соперник', value: opponentTitle }] as const) : ([] as const)),
       ],
     });
-  }, [props.setMetrics, total, engine.index, engine.correctCount, engine.mistakesCount, engine.elapsedSec, engine.remainingSec, engine.totalSeconds, isSpeed]);
+  }, [props.setMetrics, total, engine.index, engine.correctCount, engine.mistakesCount, engine.elapsedSec, engine.remainingSec, engine.totalSeconds, isSpeed, isRace, opponentProgressPct, opponentTitle]);
 
   if (!problem) return null;
 
@@ -271,6 +276,7 @@ export function NumberCompositionSession(props: {
       opponentName="Соперник"
       isGameComplete={isGameComplete}
       hideHud={true}
+      onOpponentProgressPct={(pct) => setOpponentProgressPct(pct)}
       onRaceEnd={(playerWon, stars) => {
         const timeSec = playerDoneRef.done ? playerDoneRef.timeSec : engine.elapsedSec;
         const correctFirstTry = Math.max(0, solved - wrongUniqueRef.current.size);

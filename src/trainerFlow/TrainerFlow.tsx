@@ -417,7 +417,8 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                         }) ?? [];
                       const time = sessionMetrics.badges?.find((b) => b.kind === 'time') as any;
                       const counter = sessionMetrics.badges?.find((b) => b.kind === 'counter') as any;
-                      const canShowMobile = typeof sessionMetrics.opponentProgressPct !== 'number';
+                      const isRace = typeof sessionMetrics.opponentProgressPct === 'number';
+                      const canShowMobile = !isRace;
                       const isSpeedOrTimed = time?.mode === 'remaining';
                       return (
                         <>
@@ -440,16 +441,45 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                 </div>
                               ) : (
                                 <>
-                                  {time ? (
-                                    <div className="flex justify-center">
+                                  {/* Speed: compact row time + progress */}
+                                  {isSpeedOrTimed && time && counter ? (
+                                    <div className="flex items-center justify-center gap-3">
                                       <div className="stats-badge">
                                         <Clock className="w-4 h-4" />
-                                        <span>
-                                          {time.label}: {Math.max(0, Math.floor(time.seconds))}с
+                                        <span className="tabular-nums">{Math.max(0, Math.floor(time.seconds))}с</span>
+                                      </div>
+                                      <div className="stats-badge">
+                                        <Hash className="w-4 h-4" />
+                                        <span className="tabular-nums">
+                                          {counter.current}/{counter.total}
                                         </span>
                                       </div>
                                     </div>
-                                  ) : null}
+                                  ) : (
+                                    <>
+                                      {time ? (
+                                        <div className="flex justify-center">
+                                          <div className="stats-badge">
+                                            <Clock className="w-4 h-4" />
+                                            <span>
+                                              {time.label}: {Math.max(0, Math.floor(time.seconds))}с
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : null}
+
+                                      {counter ? (
+                                        <div className="flex justify-center">
+                                          <div className="stats-badge">
+                                            <Hash className="w-4 h-4" />
+                                            <span>
+                                              Прогресс: {counter.current}/{counter.total}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                    </>
+                                  )}
 
                                   {/* Time remaining bar (Speed) */}
                                   {(() => {
@@ -461,33 +491,44 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                     const isLow = remaining <= 10;
                                     return (
                                       <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                        <div
-                                          className={cn('h-full rounded-full transition-all duration-300', isLow ? 'bg-destructive' : 'bg-primary')}
-                                          style={{ width: `${pct}%` }}
-                                        />
+                                        <div className={cn('h-full rounded-full transition-all duration-300', isLow ? 'bg-destructive' : 'bg-primary')} style={{ width: `${pct}%` }} />
                                       </div>
                                     );
                                   })()}
-
-                                  {counter ? (
-                                    <div className="flex justify-center">
-                                      <div className="stats-badge">
-                                        <Hash className="w-4 h-4" />
-                                        <span>
-                                          Прогресс: {counter.current}/{counter.total}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ) : null}
                                 </>
                               )}
 
-                              {typeof sessionMetrics.progressPct === 'number' ? (
+                              {/* Keep progress bar only for non-speed modes to save vertical space */}
+                              {typeof sessionMetrics.progressPct === 'number' && !isSpeedOrTimed ? (
                                 <div className="progress-bar">
                                   <div
                                     className="progress-bar-fill"
                                     style={{ width: `${Math.max(0, Math.min(100, Math.round(sessionMetrics.progressPct || 0)))}%` }}
                                   />
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {/* Race HUD on mobile */}
+                          {isRace ? (
+                            <div className="md:hidden space-y-2">
+                              {counter ? (
+                                <div className="flex justify-center">
+                                  <div className="stats-badge">
+                                    <Hash className="w-4 h-4" />
+                                    <span>
+                                      Твой прогресс: {counter.current}/{counter.total}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {opponentText ? <div className="text-center text-sm text-muted-foreground">Соперник: {String(opponentText.value || '').trim()}</div> : null}
+
+                              {typeof sessionMetrics.opponentProgressPct === 'number' ? (
+                                <div className="progress-bar">
+                                  <div className="h-full rounded-full transition-all duration-500 ease-out bg-muted-foreground/35" style={{ width: `${Math.max(0, Math.min(100, Math.round(sessionMetrics.opponentProgressPct || 0)))}%` }} />
                                 </div>
                               ) : null}
                             </div>
@@ -574,7 +615,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
             opponentProgressPct={sessionMetrics.opponentProgressPct}
             opponentLabel={opponentText ? `Соперник: ${opponentText.value}` : undefined}
             selfLabel={typeof sessionMetrics.opponentProgressPct === 'number' ? 'Ты' : undefined}
-            progressWrapperClassName={typeof sessionMetrics.opponentProgressPct === 'number' ? undefined : 'hidden md:block'}
+            progressWrapperClassName="hidden md:block"
           >
             {definition.renderSession({
               config,

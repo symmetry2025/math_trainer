@@ -49,7 +49,7 @@ export function TrainerGameFrame(props: {
           return;
         }
         const raw = avail / needed;
-        const scale = Math.min(1, Math.max(0.72, Math.floor(raw * 1000) / 1000));
+        const scale = Math.min(1, Math.max(0.58, Math.floor(raw * 1000) / 1000));
         const height = Math.max(0, Math.floor(needed * scale));
         setFit(scale < 1 ? { scale, height } : null);
       });

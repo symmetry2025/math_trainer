@@ -196,8 +196,8 @@ export function PresetSelect<TProgress, TConfig extends SessionConfigBase>(props
         </div>
       </div>
 
-      <div className="md:hidden sticky bottom-0 left-0 right-0 bg-background border-t border-border/60 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-        <Button size="lg" onClick={props.onStart} disabled={startDisabled} className="w-full">
+      <div className="md:hidden sticky bottom-0 left-0 right-0 -mx-4 bg-background border-t border-border/60 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+        <Button size="lg" onClick={props.onStart} disabled={startDisabled} className="w-full rounded-none h-14">
           Начать
         </Button>
       </div>

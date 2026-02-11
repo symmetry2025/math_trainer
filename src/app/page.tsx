@@ -86,8 +86,8 @@ export default function LandingPage() {
             </p>
 
             <div className="flex justify-center mb-5">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                <Sparkles className="w-4 h-4" />
+              <div className="inline-flex flex-col items-center gap-1 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium text-center sm:flex-row sm:gap-2">
+                <Sparkles className="w-4 h-4 shrink-0" />
                 Бесплатный доступ ко всем тренажёрам до 23 марта
               </div>
             </div>
@@ -112,7 +112,7 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto">
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-foreground">20+</div>
+                <div className="text-3xl md:text-4xl font-bold text-foreground">50+</div>
                 <div className="text-sm text-muted-foreground">тренажёров</div>
               </div>
               <div className="text-center">
@@ -139,10 +139,10 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {FEATURES.map((feature, index) => (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 border-0 bg-card">
+              <Card key={index} className="group hover:shadow-lg transition-all duration-300 border-0 bg-card text-center sm:text-left">
                 <CardContent className="p-6">
                   <div
-                    className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}
+                    className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform mx-auto sm:mx-0`}
                   >
                     <feature.icon className="w-7 h-7 text-white" />
                   </div>
@@ -182,6 +182,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-2xl" />
                 <Card className="relative bg-card border-0 shadow-2xl rounded-3xl overflow-hidden">
                   <CardContent className="p-4 sm:p-8">
+                    <div className="text-center text-sm font-semibold text-muted-foreground mb-3">Попробуйте сами!</div>
                     <div className="bg-muted/50 rounded-2xl p-4 sm:p-6">
                       <LandingDemoTrainer total={10} />
                     </div>

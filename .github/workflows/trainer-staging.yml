@@ -36,13 +36,11 @@ jobs:
   deploy:
     needs: build_and_push
     runs-on: ubuntu-latest
+    # GitHub validates `if:` expressions and does not allow `secrets.*` here.
+    # Control deploy via repository variable VPS_DEPLOY_ENABLED=1.
+    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' }}
     steps:
-      - name: Skip deploy (no VPS secrets)
-        if: ${{ secrets.VPS_HOST == '' }}
-        run: echo "VPS secrets are not configured; skipping deploy."
-
       - name: Deploy to VPS (staging)
-        if: ${{ secrets.VPS_HOST != '' }}
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.VPS_HOST }}

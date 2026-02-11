@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
-    env_file: ../prod.env
+    env_file: ./.env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -17,7 +17,7 @@ services:
 
   app:
     image: ${IMAGE}:${APP_TAG}
-    env_file: ../prod.env
+    env_file: ./.env
     environment:
       NODE_ENV: production
       PORT: "3000"

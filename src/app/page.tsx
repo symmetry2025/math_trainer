@@ -69,11 +69,6 @@ export default function LandingPage() {
 
         <div className="container mx-auto px-4 py-16 md:py-24">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              <Sparkles className="w-4 h-4" />
-              Бесплатный доступ ко всем тренажёрам до 23 марта
-            </div>
-
             <div className="flex justify-center mb-8">
               <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/30">
                 <Calculator className="w-10 h-10 text-primary-foreground" />
@@ -90,15 +85,25 @@ export default function LandingPage() {
               в игровой форме.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link href="/login?next=/addition">
-                <Button size="lg" className="text-lg px-8 py-6 rounded-xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all">
+            <div className="flex justify-center mb-5">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                <Sparkles className="w-4 h-4" />
+                Бесплатный доступ ко всем тренажёрам до 23 марта
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center mb-12 max-w-md mx-auto">
+              <Link href="/login?next=/addition" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto justify-center text-lg px-8 py-6 rounded-xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
+                >
                   <Rocket className="w-5 h-5" />
                   Начать бесплатно
                 </Button>
               </Link>
-              <a href="#features" className="inline-flex">
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6 rounded-xl">
+              <a href="#features" className="w-full sm:w-auto inline-flex">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto justify-center text-lg px-8 py-6 rounded-xl">
                   Узнать больше
                   <ArrowRight className="w-5 h-5" />
                 </Button>
@@ -153,9 +158,11 @@ export default function LandingPage() {
       <section className="py-16 md:py-24">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">Почему родители выбирают МатТренер?</h2>
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+              <div className="min-w-0">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-6 leading-tight">
+                  Почему родители выбирают МатТренер?
+                </h2>
                 <div className="space-y-6">
                   {BENEFITS.map((benefit, index) => (
                     <div key={index} className="flex gap-4">
@@ -171,11 +178,11 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="relative">
+              <div className="relative min-w-0">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-2xl" />
                 <Card className="relative bg-card border-0 shadow-2xl rounded-3xl overflow-hidden">
-                  <CardContent className="p-8">
-                    <div className="bg-muted/50 rounded-2xl p-6">
+                  <CardContent className="p-4 sm:p-8">
+                    <div className="bg-muted/50 rounded-2xl p-4 sm:p-6">
                       <LandingDemoTrainer total={10} />
                     </div>
                   </CardContent>

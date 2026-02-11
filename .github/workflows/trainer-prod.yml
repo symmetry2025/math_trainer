@@ -38,6 +38,7 @@ jobs:
   deploy:
     needs: build_and_push
     runs-on: ubuntu-latest
+    if: ${{ secrets.VPS_HOST != '' }}
     steps:
       - name: Deploy to VPS (prod)
         uses: appleboy/ssh-action@v1.1.0

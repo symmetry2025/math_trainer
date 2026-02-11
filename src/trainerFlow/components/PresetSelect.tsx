@@ -78,8 +78,11 @@ export function PresetSelect<TProgress, TConfig extends SessionConfigBase>(props
   const startDisabled = props.startDisabled ?? (!selected || selectedLock.locked);
 
   return (
-    <div className="min-h-screen py-6 px-4 md:py-10 md:px-8">
-      <div className="max-w-6xl mx-auto">
+    <div
+      className="min-h-[100svh] md:min-h-screen pt-6 px-4 md:py-10 md:px-8 flex flex-col"
+      style={{ ['--startbar-h' as any]: '88px' }}
+    >
+      <div className="max-w-6xl mx-auto w-full flex-1 min-h-0">
         <div className={cn('mb-6 md:mb-8', props.onBack ? 'text-left' : 'text-center')}>
           {props.onBack ? (
             <div className="flex items-center gap-3 mb-4">
@@ -99,7 +102,7 @@ export function PresetSelect<TProgress, TConfig extends SessionConfigBase>(props
           )}
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid gap-3 pb-[calc(var(--startbar-h)+env(safe-area-inset-bottom)+16px)] md:pb-0">
           {props.presets.map((preset) => {
             const lock = props.isLocked(preset.id);
             const isSelected = preset.id === props.selectedPresetId;
@@ -186,11 +189,17 @@ export function PresetSelect<TProgress, TConfig extends SessionConfigBase>(props
           </div>
         ) : null}
 
-        <div className="mt-6 md:mt-8 flex justify-center">
+        <div className="hidden md:flex mt-6 md:mt-8 justify-center">
           <Button size="lg" onClick={props.onStart} disabled={startDisabled} className="w-full sm:w-auto min-w-[220px]">
             Начать
           </Button>
         </div>
+      </div>
+
+      <div className="md:hidden sticky bottom-0 left-0 right-0 bg-background border-t border-border/60 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+        <Button size="lg" onClick={props.onStart} disabled={startDisabled} className="w-full">
+          Начать
+        </Button>
       </div>
     </div>
   );

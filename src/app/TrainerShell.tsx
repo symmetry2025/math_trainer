@@ -143,18 +143,13 @@ export function TrainerShell(props: { children: ReactNode }) {
   }, [navItems, pathname]);
 
   const hideMobileHeader = useMemo(() => {
-    // Avoid double stacked headers in trainer flow on mobile (TrainerFlow provides its own header).
+    // Hide ONLY on a concrete trainer page (e.g. /addition/<exerciseId>), because TrainerFlow provides its own header there.
     return (
-      pathname === '/addition' ||
-      pathname.startsWith('/addition/') ||
-      pathname === '/subtraction' ||
-      pathname.startsWith('/subtraction/') ||
-      pathname === '/multiplication' ||
-      pathname.startsWith('/multiplication/') ||
-      pathname === '/division' ||
-      pathname.startsWith('/division/') ||
-      pathname === '/trainers' ||
-      pathname.startsWith('/trainers/')
+      /^\/addition\/.+/.test(pathname) ||
+      /^\/subtraction\/.+/.test(pathname) ||
+      /^\/multiplication\/.+/.test(pathname) ||
+      /^\/division\/.+/.test(pathname) ||
+      /^\/trainers\/.+/.test(pathname)
     );
   }, [pathname]);
 

@@ -374,8 +374,30 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
         {definition.sessionFrame?.type === 'trainerGameFrame' ? (
           <TrainerGameFrame
             header={
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-4">
+              <div className="space-y-3 md:space-y-3 md:block">
+                <div className="md:hidden -mx-4 px-4 py-2 bg-card border-b border-border/60">
+                  <div className="h-14 flex items-center justify-between gap-3">
+                    <Button variant="ghost" size="icon" onClick={handleBackToSelect} aria-label="Назад">
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <h1 className="min-w-0 text-base font-bold text-foreground text-center flex-1 truncate whitespace-nowrap">
+                      {definition.meta.title}
+                    </h1>
+                    {(() => {
+                      const m = sessionMetrics.badges?.find((b) => b.kind === 'mistakes') as any;
+                      return m ? (
+                        <div className={cn('stats-badge', m.value > 0 && 'text-destructive')}>
+                          <XCircle className="w-4 h-4" />
+                          <span className="tabular-nums">{m.value}</span>
+                        </div>
+                      ) : (
+                        <div className="w-10" />
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div className="hidden md:flex items-center justify-between gap-4">
                   <Button variant="ghost" size="icon" onClick={handleBackToSelect} aria-label="Назад">
                     <ArrowLeft className="w-5 h-5" />
                   </Button>
@@ -393,9 +415,86 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                           if (typeof sessionMetrics.opponentProgressPct === 'number' && b.kind === 'time') return false;
                           return true;
                         }) ?? [];
+                      const time = sessionMetrics.badges?.find((b) => b.kind === 'time') as any;
+                      const counter = sessionMetrics.badges?.find((b) => b.kind === 'counter') as any;
+                      const canShowMobile = typeof sessionMetrics.opponentProgressPct !== 'number';
+                      const isSpeedOrTimed = time?.mode === 'remaining';
                       return (
                         <>
-                          <div className="flex items-center justify-between gap-4 flex-wrap">
+                          {/* Mobile HUD layout */}
+                          {canShowMobile ? (
+                            <div className="md:hidden space-y-2">
+                              {/* Training / Accuracy: time + progress in one row */}
+                              {!isSpeedOrTimed && time && counter ? (
+                                <div className="flex items-center justify-center gap-3">
+                                  <div className="stats-badge">
+                                    <Clock className="w-4 h-4" />
+                                    <span className="tabular-nums">{Math.max(0, Math.floor(time.seconds))}с</span>
+                                  </div>
+                                  <div className="stats-badge">
+                                    <Hash className="w-4 h-4" />
+                                    <span className="tabular-nums">
+                                      {counter.current}/{counter.total}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  {time ? (
+                                    <div className="flex justify-center">
+                                      <div className="stats-badge">
+                                        <Clock className="w-4 h-4" />
+                                        <span>
+                                          {time.label}: {Math.max(0, Math.floor(time.seconds))}с
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : null}
+
+                                  {/* Time remaining bar (Speed) */}
+                                  {(() => {
+                                    const t = sessionMetrics.badges?.find((b) => b.kind === 'time' && b.mode === 'remaining') as any;
+                                    const total = Number(t?.totalSeconds || 0);
+                                    const remaining = Number(t?.seconds || 0);
+                                    if (!Number.isFinite(total) || total <= 0) return null;
+                                    const pct = Math.max(0, Math.min(100, Math.round((remaining / total) * 100)));
+                                    const isLow = remaining <= 10;
+                                    return (
+                                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                        <div
+                                          className={cn('h-full rounded-full transition-all duration-300', isLow ? 'bg-destructive' : 'bg-primary')}
+                                          style={{ width: `${pct}%` }}
+                                        />
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {counter ? (
+                                    <div className="flex justify-center">
+                                      <div className="stats-badge">
+                                        <Hash className="w-4 h-4" />
+                                        <span>
+                                          Прогресс: {counter.current}/{counter.total}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </>
+                              )}
+
+                              {typeof sessionMetrics.progressPct === 'number' ? (
+                                <div className="progress-bar">
+                                  <div
+                                    className="progress-bar-fill"
+                                    style={{ width: `${Math.max(0, Math.min(100, Math.round(sessionMetrics.progressPct || 0)))}%` }}
+                                  />
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {/* Desktop / non-mobile layout (original) */}
+                          <div className={cn('hidden md:flex items-center justify-between gap-4 flex-wrap', !canShowMobile && 'flex')}>
                             {main.map((b, idx) => {
                       if (b.kind === 'counter') {
                         return (
@@ -419,7 +518,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                       }
                       if (b.kind === 'mistakes') {
                         return (
-                          <div key={idx} className={cn('stats-badge', b.value > 0 && 'text-destructive')}>
+                          <div key={idx} className={cn('stats-badge hidden md:flex', b.value > 0 && 'text-destructive')}>
                             <XCircle className="w-4 h-4" />
                             <span>
                               {b.label}: {b.value}
@@ -450,7 +549,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                       const pct = Math.max(0, Math.min(100, Math.round((remaining / total) * 100)));
                       const isLow = remaining <= 10;
                       return (
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className={cn('h-2 bg-muted rounded-full overflow-hidden', canShowMobile && 'hidden md:block')}>
                           <div className={cn('h-full rounded-full transition-all duration-300', isLow ? 'bg-destructive' : 'bg-primary')} style={{ width: `${pct}%` }} />
                         </div>
                       );

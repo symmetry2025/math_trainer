@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ArrowRight, RotateCcw } from 'lucide-react';
 
@@ -57,6 +57,9 @@ function makeProblems(count: number): DemoProblem[] {
 }
 
 export function LandingDemoTrainer(props: { total?: number }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const total = Math.max(1, Math.min(20, Math.floor(Number(props.total ?? 10))));
   const [runKey, setRunKey] = useState(0);
   const problems = useMemo(() => makeProblems(total), [total, runKey]);
@@ -67,6 +70,36 @@ export function LandingDemoTrainer(props: { total?: number }) {
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const done = idx >= problems.length;
+
+  if (!mounted) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center">
+          <div className="problem-display inline-block text-4xl md:text-5xl font-bold text-center mb-4">
+            × = <span className="inline-block min-w-[64px] tabular-nums text-muted-foreground">?</span>
+          </div>
+          <div className="w-[360px] max-w-full mx-auto">
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <button key={i} type="button" disabled className="answer-option !px-0 !py-3 opacity-50">
+                  &nbsp;
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Прогресс</span>
+            <span className="font-medium text-primary tabular-nums">0 из {total}</span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full" style={{ width: '0%' }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const reset = () => {
     setRunKey((k) => k + 1);

@@ -142,6 +142,22 @@ export function TrainerShell(props: { children: ReactNode }) {
     return null;
   }, [navItems, pathname]);
 
+  const hideMobileHeader = useMemo(() => {
+    // Avoid double stacked headers in trainer flow on mobile (TrainerFlow provides its own header).
+    return (
+      pathname === '/addition' ||
+      pathname.startsWith('/addition/') ||
+      pathname === '/subtraction' ||
+      pathname.startsWith('/subtraction/') ||
+      pathname === '/multiplication' ||
+      pathname.startsWith('/multiplication/') ||
+      pathname === '/division' ||
+      pathname.startsWith('/division/') ||
+      pathname === '/trainers' ||
+      pathname.startsWith('/trainers/')
+    );
+  }, [pathname]);
+
   const setCollapsedAndPersist = (next: boolean) => {
     setCollapsed(next);
     try {
@@ -334,17 +350,19 @@ export function TrainerShell(props: { children: ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Mobile header */}
-        <header className="h-14 flex items-center border-b border-border px-4 md:hidden bg-card">
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="w-10 h-10 rounded-xl hover:bg-muted transition-colors flex items-center justify-center"
-            aria-label="Меню"
-          >
-            {mobileOpen ? <X className="w-5 h-5 text-muted-foreground" /> : <Menu className="w-5 h-5 text-muted-foreground" />}
-          </button>
-          <span className="ml-3 font-bold text-foreground">МатТренер</span>
-        </header>
+        {!hideMobileHeader ? (
+          <header className="h-14 flex items-center border-b border-border px-4 md:hidden bg-card">
+            <button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)}
+              className="w-10 h-10 rounded-xl hover:bg-muted transition-colors flex items-center justify-center"
+              aria-label="Меню"
+            >
+              {mobileOpen ? <X className="w-5 h-5 text-muted-foreground" /> : <Menu className="w-5 h-5 text-muted-foreground" />}
+            </button>
+            <span className="ml-3 font-bold text-foreground">МатТренер</span>
+          </header>
+        ) : null}
 
         {/* Desktop trigger (expand when collapsed) */}
         {collapsed ? (

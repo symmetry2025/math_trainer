@@ -201,7 +201,7 @@ export function NumberCompositionSession(props: {
         cardAnimating={engine.cardAnimating}
         card={
           <div className="w-full flex items-center justify-center">
-            <div className="relative w-[340px] max-w-full h-[170px]">
+            <div className="relative w-[340px] max-w-full h-[160px] sm:h-[170px]">
               {/* edges */}
               <svg className="absolute inset-0" viewBox="0 0 340 170" fill="none" aria-hidden="true">
                 <line x1="170" y1="64" x2="95" y2="108" style={{ stroke: 'hsl(var(--primary))', opacity: 0.35 }} strokeWidth="3" strokeLinecap="round" />

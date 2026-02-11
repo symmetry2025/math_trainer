@@ -21,11 +21,19 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
   ];
 
   return (
-    <div className="inline-grid w-fit mx-auto gap-2 grid-cols-[repeat(3,3.5rem)] sm:grid-cols-[repeat(3,4rem)]">
+    <div
+      className="inline-grid w-fit mx-auto gap-[var(--kb-gap)] grid-cols-[repeat(3,var(--kb-key))] touch-manipulation"
+      style={
+        {
+          '--kb-key': 'clamp(2.75rem, 7.5vh, 3.5rem)',
+          '--kb-gap': 'clamp(0.35rem, 1.2vh, 0.5rem)',
+        } as any
+      }
+    >
       {numbers.flat().map((num, index) => {
         // Keep keyboard height canonical: 56px on base, 64px on sm+ (matches card height).
         // Make cells square so the grid pitch is equal on X/Y.
-        if (num === null) return <div key={`empty-${index}`} className="w-14 h-14 sm:w-16 sm:h-16" />;
+        if (num === null) return <div key={`empty-${index}`} className="w-[var(--kb-key)] h-[var(--kb-key)]" />;
 
         if (num === 'backspace') {
           return (
@@ -38,11 +46,12 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
               onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}
               onTouchStart={(e) => e.currentTarget.classList.add('scale-95')}
               onTouchEnd={(e) => e.currentTarget.classList.remove('scale-95')}
+              onTouchCancel={(e) => e.currentTarget.classList.remove('scale-95')}
               disabled={disabled}
               className={cn(
-                'w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center select-none',
+                'w-[var(--kb-key)] h-[var(--kb-key)] rounded-xl flex items-center justify-center select-none',
                 'bg-muted border-2 border-border',
-                'hover:bg-accent hover:border-primary/50',
+                'md:hover:bg-accent md:hover:border-primary/50',
                 'transition-transform duration-100',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
@@ -68,11 +77,12 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
               onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}
               onTouchStart={(e) => e.currentTarget.classList.add('scale-95')}
               onTouchEnd={(e) => e.currentTarget.classList.remove('scale-95')}
+              onTouchCancel={(e) => e.currentTarget.classList.remove('scale-95')}
               disabled={disabled}
               className={cn(
-                'col-span-2 w-[7.5rem] sm:w-[8.5rem] h-14 sm:h-16 rounded-xl text-2xl sm:text-3xl font-bold select-none',
+                'col-span-2 w-[calc(var(--kb-key)*2+var(--kb-gap))] h-[var(--kb-key)] rounded-xl text-2xl sm:text-3xl font-bold select-none',
                 'bg-card border-2 border-border',
-                'hover:bg-accent hover:border-primary/50',
+                'md:hover:bg-accent md:hover:border-primary/50',
                 'transition-transform duration-100',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
@@ -99,11 +109,12 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
             onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}
             onTouchStart={(e) => e.currentTarget.classList.add('scale-95')}
             onTouchEnd={(e) => e.currentTarget.classList.remove('scale-95')}
+            onTouchCancel={(e) => e.currentTarget.classList.remove('scale-95')}
             disabled={disabled}
             className={cn(
-              'w-14 h-14 sm:w-16 sm:h-16 rounded-xl text-2xl sm:text-3xl font-bold select-none',
+              'w-[var(--kb-key)] h-[var(--kb-key)] rounded-xl text-2xl sm:text-3xl font-bold select-none',
               'bg-card border-2 border-border',
-              'hover:bg-accent hover:border-primary/50',
+              'md:hover:bg-accent md:hover:border-primary/50',
               'transition-transform duration-100',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',

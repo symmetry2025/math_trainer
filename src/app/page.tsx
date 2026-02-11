@@ -88,22 +88,22 @@ export default function LandingPage() {
             <div className="flex justify-center mb-5">
               <div className="inline-flex flex-col items-center gap-1 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium text-center sm:flex-row sm:gap-2">
                 <Sparkles className="w-4 h-4 shrink-0" />
-                Бесплатный доступ ко всем тренажёрам до 23 марта
+                  Бесплатный доступ ко всем тренажёрам до 23 февраля
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center mb-12 max-w-md mx-auto">
-              <Link href="/login?next=/addition" className="w-full sm:w-auto">
+              <Link href="/login?next=/addition" className="w-full sm:w-auto inline-flex">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto justify-center text-lg px-8 py-6 rounded-xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
+                  className="w-full sm:w-auto justify-center whitespace-nowrap text-lg px-8 py-6 rounded-xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
                 >
                   <Rocket className="w-5 h-5" />
                   Начать бесплатно
                 </Button>
               </Link>
               <a href="#features" className="w-full sm:w-auto inline-flex">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto justify-center text-lg px-8 py-6 rounded-xl">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto justify-center whitespace-nowrap text-lg px-8 py-6 rounded-xl">
                   Узнать больше
                   <ArrowRight className="w-5 h-5" />
                 </Button>
@@ -268,8 +268,8 @@ export default function LandingPage() {
           <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">Готовы начать?</h2>
             <p className="text-xl text-primary-foreground/80 mb-8">Присоединяйтесь к тысячам школьников, которые уже полюбили математику</p>
-            <Link href="/login?next=/addition">
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 rounded-xl shadow-xl hover:shadow-2xl transition-all bg-card/95">
+            <Link href="/login?next=/addition" className="inline-flex">
+              <Button size="lg" variant="outline" className="whitespace-nowrap text-lg px-8 py-6 rounded-xl shadow-xl hover:shadow-2xl transition-all bg-card/95">
                 <Rocket className="w-5 h-5" />
                 Начать заниматься бесплатно
               </Button>

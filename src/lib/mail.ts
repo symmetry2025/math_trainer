@@ -53,6 +53,23 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
   });
 }
 
+function serializeMailError(err: unknown): Record<string, unknown> {
+  if (!err || typeof err !== 'object') return { message: String(err) };
+  const e = err as any;
+  return {
+    name: typeof e.name === 'string' ? e.name : undefined,
+    message: typeof e.message === 'string' ? e.message : String(err),
+    code: typeof e.code === 'string' ? e.code : undefined,
+    command: typeof e.command === 'string' ? e.command : undefined,
+    responseCode: typeof e.responseCode === 'number' ? e.responseCode : undefined,
+    response: typeof e.response === 'string' ? e.response : undefined,
+    errno: typeof e.errno === 'number' ? e.errno : undefined,
+    syscall: typeof e.syscall === 'string' ? e.syscall : undefined,
+    address: typeof e.address === 'string' ? e.address : undefined,
+    port: typeof e.port === 'number' ? e.port : undefined,
+  };
+}
+
 export async function sendMail(params: { to: string } & RenderedEmail): Promise<{ messageId?: string }> {
   const to = params.to.trim();
   if (!to) throw new Error('Missing "to"');
@@ -70,20 +87,29 @@ export async function sendMail(params: { to: string } & RenderedEmail): Promise<
   });
 
   const startedAt = Date.now();
-  const info = await withTimeout(
-    transporter.sendMail({
-      from: cfg.from,
-      to,
-      subject: params.subject,
-      text: params.text,
-      html: params.html,
-    }),
-    15_000,
-    'SMTP send timed out',
-  );
-  const durationMs = Date.now() - startedAt;
-  // eslint-disable-next-line no-console
-  console.log(`[mail] sent (duration=${durationMs}ms)`);
-  return { messageId: info.messageId };
+  try {
+    // eslint-disable-next-line no-console
+    console.log(`[mail] sending host=${cfg.host} port=${cfg.port} secure=${cfg.secure} user=${cfg.user} from="${cfg.from}" to="${to}"`);
+    const info = await withTimeout(
+      transporter.sendMail({
+        from: cfg.from,
+        to,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      }),
+      15_000,
+      'SMTP send timed out',
+    );
+    const durationMs = Date.now() - startedAt;
+    // eslint-disable-next-line no-console
+    console.log(`[mail] sent (duration=${durationMs}ms) messageId=${info.messageId ?? '-'}`);
+    return { messageId: info.messageId };
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    // eslint-disable-next-line no-console
+    console.error(`[mail] send failed (duration=${durationMs}ms)`, serializeMailError(err));
+    throw err;
+  }
 }
 

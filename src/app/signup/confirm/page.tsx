@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function SignupConfirmPage() {
+function SignupConfirmInner() {
   const sp = useSearchParams();
   const token = useMemo(() => (sp.get('token') ?? '').trim(), [sp]);
   const [status, setStatus] = useState<'idle' | 'ok' | 'error'>('idle');
@@ -65,6 +65,25 @@ export default function SignupConfirmPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupConfirmPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center p-6 md:p-10">
+          <div className="w-full max-w-md">
+            <div className="card-elevated p-6 md:p-8 space-y-4">
+              <h1 className="text-2xl font-extrabold">Подтверждение почты</h1>
+              <p className="text-sm text-muted-foreground">Загрузка…</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SignupConfirmInner />
+    </Suspense>
   );
 }
 

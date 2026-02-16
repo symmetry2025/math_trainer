@@ -137,12 +137,15 @@ export function SumTableSession(props: {
     const apply = () => setIsMobile(mq.matches);
     apply();
     // Safari < 14 uses addListener/removeListener.
-    if ('addEventListener' in mq) {
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
+    const anyMq = mq as any;
+    if (typeof anyMq.addEventListener === 'function') {
+      anyMq.addEventListener('change', apply);
+      return () => anyMq.removeEventListener('change', apply);
     }
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
+    if (typeof anyMq.addListener === 'function') {
+      anyMq.addListener(apply);
+      return () => anyMq.removeListener(apply);
+    }
   }, []);
 
   const problems = useMemo(() => {

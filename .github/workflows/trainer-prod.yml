@@ -45,11 +45,21 @@ jobs:
     steps:
       - name: Deploy to VPS (prod)
         uses: appleboy/ssh-action@v1.1.0
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          WEB_BASE_URL: ${{ secrets.WEB_BASE_URL }}
+          EMAIL_CONFIRM_TTL_HOURS: ${{ secrets.EMAIL_CONFIRM_TTL_HOURS }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
+          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS
           script: |
             set -euo pipefail
             cd /opt/math_trainer/prod
@@ -83,14 +93,14 @@ jobs:
             touch "$ENV_FILE"
             chmod 600 "$ENV_FILE" || true
 
-            maybe_upsert_env_var SMTP_HOST "${{ secrets.SMTP_HOST }}" "$ENV_FILE"
-            maybe_upsert_env_var SMTP_PORT "${{ secrets.SMTP_PORT }}" "$ENV_FILE"
-            maybe_upsert_env_var SMTP_SECURE "${{ secrets.SMTP_SECURE }}" "$ENV_FILE"
-            maybe_upsert_env_var SMTP_USER "${{ secrets.SMTP_USER }}" "$ENV_FILE"
-            maybe_upsert_env_var SMTP_PASS "${{ secrets.SMTP_PASS }}" "$ENV_FILE"
-            maybe_upsert_env_var MAIL_FROM "${{ secrets.MAIL_FROM }}" "$ENV_FILE"
-            maybe_upsert_env_var WEB_BASE_URL "${{ secrets.WEB_BASE_URL }}" "$ENV_FILE"
-            maybe_upsert_env_var EMAIL_CONFIRM_TTL_HOURS "${{ secrets.EMAIL_CONFIRM_TTL_HOURS }}" "$ENV_FILE"
+            maybe_upsert_env_var SMTP_HOST "${SMTP_HOST:-}" "$ENV_FILE"
+            maybe_upsert_env_var SMTP_PORT "${SMTP_PORT:-}" "$ENV_FILE"
+            maybe_upsert_env_var SMTP_SECURE "${SMTP_SECURE:-}" "$ENV_FILE"
+            maybe_upsert_env_var SMTP_USER "${SMTP_USER:-}" "$ENV_FILE"
+            maybe_upsert_env_var SMTP_PASS "${SMTP_PASS:-}" "$ENV_FILE"
+            maybe_upsert_env_var MAIL_FROM "${MAIL_FROM:-}" "$ENV_FILE"
+            maybe_upsert_env_var WEB_BASE_URL "${WEB_BASE_URL:-}" "$ENV_FILE"
+            maybe_upsert_env_var EMAIL_CONFIRM_TTL_HOURS "${EMAIL_CONFIRM_TTL_HOURS:-}" "$ENV_FILE"
 
             require_env_key() {
               local key="$1"

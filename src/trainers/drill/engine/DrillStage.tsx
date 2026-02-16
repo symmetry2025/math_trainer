@@ -27,6 +27,16 @@ export function DrillStage(props: {
    * - 'rowOnDesktop': on lg+ card on the left, hint+input on the right
    */
   layout?: 'column' | 'rowOnDesktop';
+  /**
+   * Optional width constraints for the card wrapper.
+   * Default: `max-w-xl` (keeps most cards compact).
+   */
+  cardWrapperClassName?: string;
+  /**
+   * Optional wrapper for the input area.
+   * Default: `w-fit` (keeps keyboard sized to its content).
+   */
+  inputWrapperClassName?: string;
 }) {
   const prevStatusRef = useRef<DrillAnswerStatus>(null);
   useEffect(() => {
@@ -41,11 +51,11 @@ export function DrillStage(props: {
   }, [props.status]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full">
       {props.layout === 'rowOnDesktop' ? (
         <div className="flex flex-col items-center justify-center gap-5 md:gap-6 lg:flex-row lg:items-center lg:justify-center lg:gap-10">
           <div className="w-full flex justify-center lg:w-auto">
-            <div className="w-full max-w-xl">
+            <div className={cn('w-full', props.cardWrapperClassName ?? 'max-w-xl')}>
               <div className="relative">
                 <div
                   key={props.cardKey}
@@ -63,7 +73,7 @@ export function DrillStage(props: {
           </div>
 
           <div className="w-full flex justify-center lg:w-auto">
-            <div className="w-fit">
+            <div className={props.inputWrapperClassName ?? 'w-fit'}>
               {/* Hint spacer near the input (reserves height, no layout shifts) */}
               <div className="h-10 md:h-12 flex items-center justify-center text-base md:text-lg font-medium text-muted-foreground text-center">
                 {props.status ? (
@@ -80,7 +90,7 @@ export function DrillStage(props: {
       ) : (
         <div className="flex flex-col items-center justify-center gap-5 md:gap-6">
           <div className="w-full flex justify-center">
-            <div className="w-full max-w-xl">
+            <div className={cn('w-full', props.cardWrapperClassName ?? 'max-w-xl')}>
               <div className="relative">
                 <div
                   key={props.cardKey}
@@ -107,7 +117,7 @@ export function DrillStage(props: {
           </div>
 
           <div className="w-full flex justify-center">
-            <div className="w-fit">{props.input}</div>
+            <div className={props.inputWrapperClassName ?? 'w-fit'}>{props.input}</div>
           </div>
         </div>
       )}

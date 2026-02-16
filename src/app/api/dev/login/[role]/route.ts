@@ -28,14 +28,15 @@ export async function POST(_req: Request, ctx: { params: { role: string } }) {
   if (!isRole) return NextResponse.json({ error: 'invalid_role' }, { status: 400 });
 
   const email = DEMO_EMAIL_BY_ROLE[role];
+  const now = new Date();
 
   // We don't expose passwords for demo users. They exist only to satisfy schema invariants.
   const passwordHash = await bcrypt.hash(newToken(), 10);
 
   const user = await prisma.user.upsert({
     where: { email },
-    update: { role },
-    create: { email, role, passwordHash },
+    update: { role, emailVerifiedAt: now },
+    create: { email, role, passwordHash, emailVerifiedAt: now, displayName: role === 'admin' ? 'Админ' : role === 'parent' ? 'Родитель' : 'Ученик' },
     select: { id: true, email: true, role: true },
   });
 

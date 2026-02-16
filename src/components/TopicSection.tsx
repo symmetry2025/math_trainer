@@ -2,7 +2,7 @@
 
 import type { Exercise } from '../data/exerciseData';
 
-import { ExerciseCard } from './ExerciseCard';
+import { ExerciseCardStageStyle as ExerciseCard } from './ExerciseCardStageStyle';
 import { useCrystals } from '../lib/useCrystals';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../lib/progressHydration';
 import { emitProgressUpdated } from '../lib/crystals';
@@ -59,9 +59,9 @@ export function TopicSection(props: {
   }, [props.exercises]);
 
   return (
-    <div className="card-elevated p-5 md:p-6">
-      <h3 className="text-lg font-bold text-foreground mb-4">{props.title}</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+    <div className="space-y-3">
+      <h3 className="text-base md:text-lg font-bold text-foreground pl-1">{props.title}</h3>
+      <div className="grid gap-3">
         {props.exercises.map((exercise, idx) => {
           const status = getExerciseProgress(exercise.id);
           return (

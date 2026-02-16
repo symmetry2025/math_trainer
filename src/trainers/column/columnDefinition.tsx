@@ -32,6 +32,8 @@ type ColumnGameComponent = ComponentType<{
   difficulty?: DifficultyForGame;
   totalProblems?: number;
   onComplete?: (mistakes: number) => void;
+  /** Live mistakes updates (for canonical HUD). Should be monotonic within an attempt. */
+  onMistakesChange?: (mistakes: number) => void;
   onProblemSolved?: (solvedCount: number, totalProblems: number) => void;
   hideHeader?: boolean;
   hideProgress?: boolean;
@@ -267,6 +269,7 @@ function ColumnSession(props: {
         setMistakes(m);
         setComplete(true);
       }}
+      onMistakesChange={(m) => setMistakes(Math.max(0, Math.floor(Number(m || 0))))}
       hideHeader={true}
       hideProgress={true}
       embedded={true}

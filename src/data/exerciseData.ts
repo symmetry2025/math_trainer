@@ -205,14 +205,35 @@ export const additionSubtractionData: GradeSection[] = [
     grade: 3,
     sections: [
       {
-        id: 'addition-3',
-        title: 'Сложение',
+        id: 'addition-3-1000',
+        title: 'Сложение в пределах 1000',
         exercises: [
-          { id: 'add-table-8', title: 'Заполни таблицу', description: 'a + 8', progress: 0, total: 100, unlocked: true },
-          { id: 'column-addition', title: 'Сложение в столбик', progress: 0, total: 100, unlocked: true },
-          { id: 'add-100-3', title: 'Сложение в пределах 100', progress: 0, total: 100, unlocked: true },
-          { id: 'add-1000', title: 'Сложение в пределах 1000', progress: 0, total: 100, unlocked: true },
-          { id: 'add-5000', title: 'Сложение в пределах 5000', progress: 0, total: 100, unlocked: false },
+          // Зеркало из 2 класса
+          { id: 'add-2d-2d-no-carry', title: 'Сумма двухзначных', description: 'без перехода', progress: 0, total: 100, unlocked: true },
+          { id: 'add-2d-2d-carry', title: 'Сумма двухзначных', description: 'с переходом', progress: 0, total: 100, unlocked: true },
+
+          { id: 'add-3d-round-2d', title: 'Трёхзначное и двузначное', description: 'трёхзначное круглое', progress: 0, total: 100, unlocked: true },
+          { id: 'add-3d-3d-round', title: 'Сумма трёхзначных', description: 'оба круглые', progress: 0, total: 100, unlocked: true },
+          { id: 'add-3d-3d-one-round', title: 'Сумма трёхзначных', description: 'одно из них круглое', progress: 0, total: 100, unlocked: true },
+          { id: 'add-3d-3d-no-carry', title: 'Сумма трёхзначных', description: 'без перехода', progress: 0, total: 100, unlocked: true },
+          { id: 'add-3d-3d-carry', title: 'Сумма трёхзначных', description: 'с переходом', progress: 0, total: 100, unlocked: true },
+        ],
+      },
+      {
+        id: 'addition-3-sumtable',
+        title: 'Заполни таблицу',
+        exercises: [
+          { id: 'add-sumtable-find-addend', title: 'Найди слагаемое', progress: 0, total: 100, unlocked: true },
+          { id: 'add-sumtable-find-component', title: 'Найди компонент суммы', progress: 0, total: 100, unlocked: true },
+          { id: 'add-sumtable-letter', title: 'Подставь вместо буквы', progress: 0, total: 100, unlocked: true },
+        ],
+      },
+      {
+        id: 'addition-3-column-1000',
+        title: 'В столбик в пределах 1000',
+        exercises: [
+          { id: 'column-add-3d-2d', title: 'Трёхзначное и двузначное', progress: 0, total: 100, unlocked: true },
+          { id: 'column-add-3d-3d', title: 'Сумма трёхзначных', progress: 0, total: 100, unlocked: true },
         ],
       },
       {

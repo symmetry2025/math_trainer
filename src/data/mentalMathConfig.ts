@@ -215,6 +215,86 @@ const generators = {
     const b = randInt(0, 99);
     return { a: 0, b, answer: b };
   },
+  addition3dRoundPlus2d: () => {
+    // 3-digit round (ends with 0) + 2-digit, sum <= 999
+    for (let i = 0; i < 800; i++) {
+      const aH = randInt(1, 9);
+      const aT = randInt(0, 9);
+      const a = aH * 100 + aT * 10; // ...0
+      const maxB = 999 - a;
+      if (maxB < 10) continue;
+      const b = randInt(10, Math.min(99, maxB));
+      return { a, b, answer: a + b };
+    }
+    return { a: 340, b: 57, answer: 397 };
+  },
+  addition3dPlus3dBothRound: () => {
+    // both 3-digit, both round (end with 0), sum <= 999
+    for (let i = 0; i < 1200; i++) {
+      const aH = randInt(1, 9);
+      const aT = randInt(0, 9);
+      const a = aH * 100 + aT * 10;
+      const maxB = 999 - a;
+      if (maxB < 100) continue;
+      const bH = randInt(1, Math.min(9, Math.floor(maxB / 100)));
+      const bT = randInt(0, 9);
+      const b = bH * 100 + bT * 10;
+      if (a + b > 999) continue;
+      return { a, b, answer: a + b };
+    }
+    return { a: 250, b: 430, answer: 680 };
+  },
+  addition3dPlus3dOneRound: () => {
+    // two 3-digit; exactly one is round (end with 0); sum <= 999
+    for (let i = 0; i < 1600; i++) {
+      const roundFirst = Math.random() < 0.5;
+      const a = roundFirst
+        ? randInt(10, 99) * 10 // 100..990, ends with 0
+        : randInt(100, 999);
+      const b = roundFirst ? randInt(100, 999) : randInt(10, 99) * 10;
+      if (a % 10 === 0 && b % 10 === 0) continue;
+      if (a % 10 !== 0 && b % 10 !== 0) continue;
+      if (a + b > 999) continue;
+      if (a < 100 || b < 100) continue;
+      return { a, b, answer: a + b };
+    }
+    return { a: 420, b: 358, answer: 778 };
+  },
+  addition3dPlus3dNoCarry: () => {
+    // no carry in ones/tens/hundreds, sum <= 999
+    for (let i = 0; i < 1200; i++) {
+      const aH = randInt(1, 9);
+      const bH = randInt(1, 9 - aH); // hundreds sum < 10
+      const aT = randInt(0, 9);
+      const bT = randInt(0, 9 - aT); // tens sum < 10
+      const aO = randInt(0, 9);
+      const bO = randInt(0, 9 - aO); // ones sum < 10
+      const a = aH * 100 + aT * 10 + aO;
+      const b = bH * 100 + bT * 10 + bO;
+      const total = a + b;
+      if (total > 999) continue;
+      return { a, b, answer: total };
+    }
+    return { a: 324, b: 215, answer: 539 };
+  },
+  addition3dPlus3dCarry: () => {
+    // at least one carry (force ones carry), sum <= 999
+    for (let i = 0; i < 2000; i++) {
+      const aH = randInt(1, 8);
+      const bH = randInt(1, 8 - aH); // leave room for possible carry into hundreds
+      const aT = randInt(0, 9);
+      const bT = randInt(0, 9);
+      const aO = randInt(1, 9);
+      const bO = randInt(10 - aO, 9); // ones carry guaranteed
+      const a = aH * 100 + aT * 10 + aO;
+      const b = bH * 100 + bT * 10 + bO;
+      const total = a + b;
+      if (total > 999) continue;
+      if ((aO + bO) < 10) continue;
+      return { a, b, answer: total };
+    }
+    return { a: 478, b: 356, answer: 834 };
+  },
   subtractionWithin10: () => {
     const a = randInt(2, 10); // 2-10
     const b = randInt(1, a - 1);
@@ -476,6 +556,76 @@ export const MENTAL_MATH_CONFIGS: Record<string, MentalMathTrainerConfig> = {
     },
     npcSpeeds: { 1: 7, 2: 5, 3: 4 },
   },
+  'add-3d-round-2d': {
+    id: 'add-3d-round-2d',
+    name: 'Трёхзначное (круглое) и двузначное — до 1000',
+    shortName: '3зкругл+2з',
+    problemType: 'addition',
+    generator: generators.addition3dRoundPlus2d,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 120 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 16, 2: 13, 3: 10 },
+  },
+  'add-3d-3d-round': {
+    id: 'add-3d-3d-round',
+    name: 'Сумма трёхзначных (оба круглые) — до 1000',
+    shortName: '3зкругл+3зкругл',
+    problemType: 'addition',
+    generator: generators.addition3dPlus3dBothRound,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 120 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 18, 2: 15, 3: 12 },
+  },
+  'add-3d-3d-one-round': {
+    id: 'add-3d-3d-one-round',
+    name: 'Сумма трёхзначных (одно круглое) — до 1000',
+    shortName: '3з+3зкругл',
+    problemType: 'addition',
+    generator: generators.addition3dPlus3dOneRound,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 120 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 18, 2: 15, 3: 12 },
+  },
+  'add-3d-3d-no-carry': {
+    id: 'add-3d-3d-no-carry',
+    name: 'Сумма трёхзначных (без перехода) — до 1000',
+    shortName: '3з+3з (без)',
+    problemType: 'addition',
+    generator: generators.addition3dPlus3dNoCarry,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 120 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 17, 2: 14, 3: 11 },
+  },
+  'add-3d-3d-carry': {
+    id: 'add-3d-3d-carry',
+    name: 'Сумма трёхзначных (с переходом) — до 1000',
+    shortName: '3з+3з (с)',
+    problemType: 'addition',
+    generator: generators.addition3dPlus3dCarry,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 120 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 18, 2: 15, 3: 12 },
+  },
   'sub-10': {
     id: 'sub-10',
     name: 'Вычитание до 10',
@@ -610,13 +760,47 @@ export const getMentalMathConfig = (trainerId: string): MentalMathTrainerConfig 
   return config;
 };
 
-export const generateOptions = (correctAnswer: number, count: number = 4): number[] => {
-  const options = new Set<number>([correctAnswer]);
-  while (options.size < count) {
-    const offset = Math.floor(Math.random() * 10) - 5;
-    const wrong = correctAnswer + offset;
-    if (wrong > 0 && wrong !== correctAnswer && wrong <= 100) options.add(wrong);
+export const generateOptions = (
+  correctAnswer: number,
+  count: number = 4,
+  opts?: {
+    min?: number;
+    max?: number;
+    /** optional fixed spread around correct (if provided, overrides auto spread) */
+    spread?: number;
+  },
+): number[] => {
+  const correct = Math.floor(Number(correctAnswer || 0));
+  const targetCount = Math.max(2, Math.floor(Number(count || 4)));
+
+  const autoSpread = Math.max(6, Math.min(80, Math.round(Math.max(10, Math.abs(correct)) * 0.2)));
+  const spread = Math.max(6, Math.floor(Number(opts?.spread ?? autoSpread)));
+
+  const min = Math.floor(Number(opts?.min ?? Math.max(0, correct - spread)));
+  const max = Math.floor(Number(opts?.max ?? Math.max(min + 10, correct + spread)));
+
+  const options = new Set<number>([correct]);
+  let guard = 0;
+  while (options.size < targetCount && guard++ < 300) {
+    const wrong = correct + randInt(-spread, spread);
+    if (!Number.isFinite(wrong)) continue;
+    if (wrong < min || wrong > max) continue;
+    if (wrong === correct) continue;
+    options.add(wrong);
   }
+
+  // Deterministic fallback fill (rare, but avoids infinite loops if min/max too tight).
+  let bump = 1;
+  while (options.size < targetCount) {
+    const a = correct + bump;
+    const b = correct - bump;
+    if (a !== correct && a >= min && a <= max) options.add(a);
+    if (options.size >= targetCount) break;
+    if (b !== correct && b >= min && b <= max) options.add(b);
+    bump++;
+    if (bump > spread + 20) break;
+  }
+
   return Array.from(options).sort(() => Math.random() - 0.5);
 };
 

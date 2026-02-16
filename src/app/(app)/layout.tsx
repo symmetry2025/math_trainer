@@ -8,7 +8,7 @@ import { getCurrentUserOrNull } from '../../lib/auth';
 export default async function AppLayout(props: { children: ReactNode }) {
   // Server-side gate: even if cookie is present but invalid/expired, we must protect app pages.
   const user = await getCurrentUserOrNull();
-  if (!user) redirect('/login?next=/');
+  if (!user) redirect('/login');
   return <TrainerShell>{props.children}</TrainerShell>;
 }
 

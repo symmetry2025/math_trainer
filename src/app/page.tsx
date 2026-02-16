@@ -93,7 +93,7 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center mb-12 max-w-md mx-auto">
-              <Link href="/login?next=/addition" className="w-full sm:w-auto inline-flex">
+              <Link href="/login" className="w-full sm:w-auto inline-flex">
                 <Button
                   size="lg"
                   className="w-full sm:w-auto justify-center whitespace-nowrap text-lg px-8 py-6 rounded-xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
@@ -268,7 +268,7 @@ export default function LandingPage() {
           <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">Готовы начать?</h2>
             <p className="text-xl text-primary-foreground/80 mb-8">Присоединяйтесь к тысячам школьников, которые уже полюбили математику</p>
-            <Link href="/login?next=/addition" className="inline-flex">
+            <Link href="/login" className="inline-flex">
               <Button size="lg" variant="outline" className="whitespace-nowrap text-lg px-8 py-6 rounded-xl shadow-xl hover:shadow-2xl transition-all bg-card/95">
                 <Rocket className="w-5 h-5" />
                 Начать заниматься бесплатно

@@ -132,7 +132,7 @@ export function LandingDemoTrainer(props: { total?: number }) {
             <RotateCcw className="w-4 h-4" />
             Ещё раз
           </Button>
-          <Link href="/login?next=/addition">
+          <Link href="/login">
             <Button>
               Начать бесплатно
               <ArrowRight className="w-4 h-4" />

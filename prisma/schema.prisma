@@ -16,12 +16,15 @@ enum Role {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
+  displayName  String?
   passwordHash String
   role         Role     @default(student)
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   sessions Session[]
+  emailConfirmationTokens EmailConfirmationToken[]
   trainerProgress TrainerProgress[]
   trainerAttempts TrainerAttempt[]
   achievements UserAchievement[]
@@ -39,6 +42,22 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model EmailConfirmationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([usedAt])
 }
 
 // Aggregated per-trainer progress (unlock state, stars, etc.).

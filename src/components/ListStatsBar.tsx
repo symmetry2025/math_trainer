@@ -35,14 +35,12 @@ export function ListStatsBar(props: { exerciseIds: string[]; className?: string 
   const starsPct = stats.starsTotal > 0 ? Math.round((stats.starsEarned / stats.starsTotal) * 100) : 0;
 
   return (
-    <div className={cn('card-elevated p-4 md:p-6 animate-fade-in', props.className)}>
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-muted-foreground">Баллы</span>
-        <span className="text-xs text-muted-foreground">
-          Тренажёров: <span className="font-semibold text-foreground tabular-nums">{stats.wiredCount}</span>
-        </span>
-      </div>
-
+    <div
+      className={cn(
+        'w-full rounded-2xl border-2 bg-white dark:bg-card border-border/40 shadow-sm p-4 md:p-6 animate-fade-in',
+        props.className,
+      )}
+    >
       <div className="space-y-4">
         {/* Crystals */}
         <div className="space-y-2">

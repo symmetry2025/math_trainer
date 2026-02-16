@@ -19,13 +19,13 @@ export function getSessionCookieValue(): string | null {
   return cookies().get(AUTH_COOKIE_NAME)?.value ?? null;
 }
 
-export async function getCurrentUserOrNull(): Promise<(Pick<User, 'id' | 'email' | 'role'>) | null> {
+export async function getCurrentUserOrNull(): Promise<(Pick<User, 'id' | 'email' | 'role' | 'displayName' | 'emailVerifiedAt'>) | null> {
   const token = getSessionCookieValue();
   if (!token) return null;
   const tokenHash = hashToken(token);
   const sess = await prisma.session.findUnique({
     where: { tokenHash },
-    include: { user: { select: { id: true, email: true, role: true } } },
+    include: { user: { select: { id: true, email: true, role: true, displayName: true, emailVerifiedAt: true } } },
   });
   if (!sess) return null;
   if (sess.expiresAt.getTime() <= Date.now()) return null;

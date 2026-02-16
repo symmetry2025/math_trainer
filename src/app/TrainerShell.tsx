@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { BarChart3, Calculator, ChevronRight, Divide, Gem, LogOut, Menu, Minus, Moon, Plus, Sun, Trophy, User, X } from 'lucide-react';
+import { BarChart3, Calculator, ChevronRight, Divide, Gem, LogOut, Menu, Minus, Moon, Plus, Settings, Sun, Trophy, User, Users, X } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useCrystals } from '../lib/useCrystals';
@@ -78,6 +78,7 @@ export function TrainerShell(props: { children: ReactNode }) {
   }, []);
 
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
+  const isAdmin = auth.status === 'authed' && auth.user.role === 'admin';
   const doLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -122,25 +123,73 @@ export function TrainerShell(props: { children: ReactNode }) {
     };
   }, []);
 
-  const navItems = useMemo(
+  const trainerNav = useMemo(
     () => [
-      { group: 'Тренажёры', label: 'Сложение', href: '/addition', icon: Plus },
-      { group: 'Тренажёры', label: 'Вычитание', href: '/subtraction', icon: Minus },
-      { group: 'Тренажёры', label: 'Умножение', href: '/multiplication', icon: Calculator },
-      { group: 'Тренажёры', label: 'Деление', href: '/division', icon: Divide },
+      {
+        grade: 2,
+        label: '2 класс',
+        hrefDefault: '/class-2/addition',
+        items: [
+          { label: 'Сложение', href: '/class-2/addition', icon: Plus },
+          { label: 'Вычитание', href: '/class-2/subtraction', icon: Minus },
+          { label: 'Умножение', href: '/class-2/multiplication', icon: Calculator },
+          { label: 'Деление', href: '/class-2/division', icon: Divide },
+        ],
+      },
+      {
+        grade: 3,
+        label: '3 класс',
+        hrefDefault: '/class-3/addition',
+        items: [
+          { label: 'Сложение', href: '/class-3/addition', icon: Plus },
+          { label: 'Вычитание', href: '/class-3/subtraction', icon: Minus },
+          { label: 'Умножение', href: '/class-3/multiplication', icon: Calculator },
+          { label: 'Деление', href: '/class-3/division', icon: Divide },
+        ],
+      },
+      {
+        grade: 4,
+        label: '4 класс',
+        hrefDefault: '/class-4/addition',
+        items: [
+          { label: 'Сложение', href: '/class-4/addition', icon: Plus },
+          { label: 'Вычитание', href: '/class-4/subtraction', icon: Minus },
+          { label: 'Умножение', href: '/class-4/multiplication', icon: Calculator },
+          { label: 'Деление', href: '/class-4/division', icon: Divide },
+        ],
+      },
+    ],
+    [],
+  );
+
+  const progressNav = useMemo(
+    () => [
       { group: 'Прогресс', label: 'Мои достижения', href: '/progress/achievements', icon: Trophy },
       { group: 'Прогресс', label: 'Статистика', href: '/progress/stats', icon: BarChart3 },
     ],
     [],
   );
 
+  const adminNav = useMemo(
+    () => [{ group: 'Админка', label: 'Пользователи', href: '/admin/users', icon: Users }],
+    [],
+  );
+
+  const [openGrade, setOpenGrade] = useState<2 | 3 | 4 | null>(2);
+
   const activeHref = useMemo(() => {
-    const sorted = [...navItems].sort((a, b) => b.href.length - a.href.length);
-    for (const item of sorted) {
-      if (pathname === item.href || pathname.startsWith(item.href + '/')) return item.href;
+    const hrefs: string[] = [];
+    if (!isAdmin) {
+      for (const g of trainerNav) for (const i of g.items) hrefs.push(i.href);
+      for (const p of progressNav) hrefs.push(p.href);
+    }
+    for (const a of adminNav) hrefs.push(a.href);
+    hrefs.sort((a, b) => b.length - a.length);
+    for (const href of hrefs) {
+      if (pathname === href || pathname.startsWith(href + '/')) return href;
     }
     return null;
-  }, [navItems, pathname]);
+  }, [trainerNav, progressNav, adminNav, pathname, isAdmin]);
 
   const hideMobileHeader = useMemo(() => {
     // Hide ONLY on a concrete trainer page (e.g. /addition/<exerciseId>), because TrainerFlow provides its own header there.
@@ -149,6 +198,7 @@ export function TrainerShell(props: { children: ReactNode }) {
       /^\/subtraction\/.+/.test(pathname) ||
       /^\/multiplication\/.+/.test(pathname) ||
       /^\/division\/.+/.test(pathname) ||
+      /^\/class-\d+\/(addition|subtraction|multiplication|division)\/.+/.test(pathname) ||
       /^\/trainers\/.+/.test(pathname)
     );
   }, [pathname]);
@@ -198,40 +248,133 @@ export function TrainerShell(props: { children: ReactNode }) {
 
         {/* Nav */}
         <nav className={cn('flex-1 px-3 pb-3', collapsed ? 'pt-1' : 'pt-2')}>
-          {(['Тренажёры', 'Прогресс'] as const).map((group) => {
-            const items = navItems.filter((x) => x.group === group);
-            return (
-              <div key={group} className="mb-4">
-                {!collapsed ? (
-                  <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</div>
-                ) : null}
+          {!isAdmin ? <div className="mb-4">
+            {!collapsed ? <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Тренажёры</div> : null}
 
-                <div className="space-y-1">
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const active = item.href === activeHref;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        title={collapsed ? item.label : undefined}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          'flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
-                          active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
-                          collapsed && 'justify-center px-2',
-                        )}
-                      >
-                        <Icon className="w-5 h-5 flex-shrink-0" />
-                        {!collapsed ? <span className="truncate">{item.label}</span> : null}
-                        {!collapsed && active ? <ChevronRight className="w-4 h-4 ml-auto text-sidebar-primary" /> : null}
-                      </Link>
-                    );
-                  })}
-                </div>
+            <div className="space-y-1">
+              {trainerNav.map((g) => {
+                const isOpen = openGrade === (g.grade as any);
+                const anyActive = g.items.some((i) => i.href === activeHref);
+
+                if (collapsed) {
+                  return (
+                    <Link
+                      key={g.grade}
+                      href={g.hrefDefault}
+                      title={g.label}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center justify-center px-2 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                        anyActive && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                      )}
+                    >
+                      <span className="w-10 h-10 rounded-xl bg-sidebar-accent/50 flex items-center justify-center text-sm font-extrabold tabular-nums">
+                        {g.grade}
+                      </span>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div key={g.grade} className="rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setOpenGrade((p) => (p === (g.grade as any) ? null : (g.grade as any)))}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent text-left',
+                        anyActive && 'bg-sidebar-accent/70',
+                      )}
+                    >
+                      <span className={cn('w-8 h-8 rounded-lg bg-sidebar-accent flex items-center justify-center font-extrabold tabular-nums', anyActive && 'text-sidebar-primary')}>
+                        {g.grade}
+                      </span>
+                      <span className={cn('truncate', anyActive && 'font-semibold')}>{g.label}</span>
+                      <ChevronRight className={cn('w-4 h-4 ml-auto text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+                    </button>
+
+                    {isOpen ? (
+                      <div className="mt-1 ml-11 space-y-1">
+                        {g.items.map((item) => {
+                          const Icon = item.icon;
+                          const active = item.href === activeHref;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setMobileOpen(false)}
+                              className={cn(
+                                'flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                                active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                              )}
+                            >
+                              <Icon className="w-4 h-4 flex-shrink-0" />
+                              <span className="truncate">{item.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div> : null}
+
+          {!isAdmin ? <div className="mb-4">
+            {!collapsed ? <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Прогресс</div> : null}
+            <div className="space-y-1">
+              {progressNav.map((item) => {
+                const Icon = item.icon;
+                const active = item.href === activeHref;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                      active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                      collapsed && 'justify-center px-2',
+                    )}
+                  >
+                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                    {!collapsed && active ? <ChevronRight className="w-4 h-4 ml-auto text-sidebar-primary" /> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          </div> : null}
+
+          {isAdmin ? (
+            <div className="mb-4">
+              {!collapsed ? <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Админка</div> : null}
+              <div className="space-y-1">
+                {adminNav.map((item) => {
+                  const Icon = item.icon;
+                  const active = item.href === activeHref;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={collapsed ? item.label : undefined}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                        active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                        collapsed && 'justify-center px-2',
+                      )}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                      {!collapsed && active ? <ChevronRight className="w-4 h-4 ml-auto text-sidebar-primary" /> : null}
+                    </Link>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ) : null}
         </nav>
 
         {/* Footer */}
@@ -263,11 +406,22 @@ export function TrainerShell(props: { children: ReactNode }) {
 
               <a
                 className="w-10 h-10 rounded-full bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity"
-                href={auth.status === 'authed' ? '/addition' : '/login'}
+                href={auth.status === 'authed' ? '/class-2/addition' : '/login'}
                 title={auth.status === 'authed' ? 'Аккаунт' : 'Войти'}
               >
                 <User className="w-5 h-5 text-brand-dark-foreground" />
               </a>
+
+              {auth.status === 'authed' ? (
+                <Link
+                  className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
+                  href="/settings"
+                  title="Настройки"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Settings className="w-5 h-5 text-muted-foreground" />
+                </Link>
+              ) : null}
 
               <div className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center" title={`Кристаллы: ${totalCrystals}`}>
                 <div className="flex items-center gap-1 text-xs font-semibold text-sidebar-foreground">
@@ -338,6 +492,17 @@ export function TrainerShell(props: { children: ReactNode }) {
                   />
                 </span>
               </button>
+
+              {auth.status === 'authed' ? (
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <Settings className="w-4 h-4" />
+                  Настройки
+                </Link>
+              ) : null}
             </>
           )}
         </div>

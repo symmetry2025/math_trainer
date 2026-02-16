@@ -1,30 +1,38 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 
 const DEMO_STUDENT_EMAIL = 'demo.student@trainer.local';
 
-export default function LoginClient() {
-  const router = useRouter();
-  const sp = useSearchParams();
-  const next = useMemo(() => {
-    const raw = sp.get('next');
-    // Basic open-redirect protection: allow only local paths.
-    if (raw && raw.startsWith('/')) return raw;
-    return '/addition';
-  }, [sp]);
+function friendlyAuthError(code: unknown): string {
+  const c = typeof code === 'string' ? code : '';
+  if (c === 'invalid_credentials') return 'Неверная почта или пароль';
+  if (c === 'email_not_verified') return 'Почта не подтверждена. Проверь письмо и перейди по ссылке.';
+  if (c === 'invalid_input') return 'Проверь, что почта и пароль заполнены корректно';
+  if (c === 'email_taken') return 'Этот email уже занят';
+  if (c === 'email_send_failed') return 'Не удалось отправить письмо. Проверь настройки почты и повтори.';
+  if (c === 'invalid_or_expired_token') return 'Ссылка недействительна или устарела';
+  if (!c) return 'Ошибка';
+  return 'Ошибка: ' + c;
+}
 
-  const goNext = () => {
+export default function LoginClient() {
+  const goNextByRole = (roleRaw: unknown) => {
+    const role = typeof roleRaw === 'string' ? roleRaw : '';
+    const href = role === 'admin' ? '/admin/users' : '/class-2/addition';
     // Ensure middleware sees the fresh session cookie (hard navigation).
-    window.location.assign(next);
+    window.location.assign(href);
   };
 
   const [email, setEmail] = useState(() => (process.env.NODE_ENV === 'production' ? '' : DEMO_STUDENT_EMAIL));
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needResendConfirm, setNeedResendConfirm] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
 
   const quickLoginStudent = async () => {
     setError(null);
@@ -33,10 +41,28 @@ export default function LoginClient() {
       const res = await fetch('/api/dev/login/student', { method: 'POST', credentials: 'include' });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError(body?.error || body?.message || 'Dev login недоступен');
+        setError(friendlyAuthError(body?.error || body?.message || 'Dev login недоступен'));
         return;
       }
-      goNext();
+      goNextByRole('student');
+    } catch {
+      setError('Ошибка сети');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const quickLoginAdmin = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch('/api/dev/login/admin', { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(friendlyAuthError(body?.error || body?.message || 'Dev login недоступен'));
+        return;
+      }
+      goNextByRole('admin');
     } catch {
       setError('Ошибка сети');
     } finally {
@@ -46,6 +72,8 @@ export default function LoginClient() {
 
   const submit = async () => {
     setError(null);
+    setInfo(null);
+    setNeedResendConfirm(false);
     setBusy(true);
     try {
       const res = await fetch(mode === 'login' ? '/api/auth/login' : '/api/auth/register', {
@@ -56,10 +84,61 @@ export default function LoginClient() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(body?.error || body?.message || 'Ошибка входа');
+        if (body?.error === 'email_not_verified') {
+            setError(friendlyAuthError(body?.error));
+          setNeedResendConfirm(true);
+        } else {
+            setError(friendlyAuthError(body?.error || body?.message));
+        }
         return;
       }
-      goNext();
+      if (mode === 'login') {
+        goNextByRole(body?.user?.role);
+        return;
+      }
+      setInfo('Аккаунт создан. Мы отправили письма с паролем и ссылкой подтверждения. Сначала подтверди почту, затем войди.');
+      setMode('login');
+      setPassword('');
+    } catch {
+      setError('Ошибка сети');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendConfirm = async () => {
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+    try {
+      const res = await fetch('/api/auth/resend-confirm-email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      await res.json().catch(() => ({}));
+      setInfo('Если почта существует и не подтверждена — мы отправили письмо ещё раз.');
+    } catch {
+      setError('Ошибка сети');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forgotPassword = async (targetEmail: string) => {
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      await res.json().catch(() => ({}));
+      setInfo('Если почта существует — мы отправили письмо с инструкциями.');
+      setPassword('');
+      setForgotOpen(false);
     } catch {
       setError('Ошибка сети');
     } finally {
@@ -73,7 +152,6 @@ export default function LoginClient() {
         <div className="card-elevated p-6 md:p-8 space-y-5">
           <div>
             <h1 className="text-2xl font-extrabold">{mode === 'login' ? 'Войти' : 'Регистрация'}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Standalone МатТренер</p>
           </div>
 
           <div className="space-y-3">
@@ -100,16 +178,49 @@ export default function LoginClient() {
             </label>
           </div>
 
+          {info ? <div className="text-sm text-foreground">{info}</div> : null}
           {error ? <div className="text-sm text-destructive">{error}</div> : null}
 
           <button type="button" className="btn-primary w-full" onClick={submit} disabled={busy || !email || !password}>
             {busy ? '...' : mode === 'login' ? 'Войти' : 'Создать аккаунт'}
           </button>
 
+          {mode === 'login' ? (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => {
+                  setForgotEmail((email || '').trim());
+                  setForgotOpen(true);
+                }}
+                disabled={busy}
+              >
+                Забыл пароль?
+              </button>
+
+              {needResendConfirm ? (
+                <button
+                  type="button"
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={resendConfirm}
+                  disabled={busy || !email}
+                >
+                  Отправить письмо подтверждения ещё раз
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
           {process.env.NODE_ENV === 'production' ? null : (
-            <button type="button" className="btn-accent w-full" onClick={quickLoginStudent} disabled={busy}>
-              Быстрый вход как ученик (dev)
-            </button>
+            <div className="space-y-2">
+              <button type="button" className="btn-accent w-full" onClick={quickLoginStudent} disabled={busy}>
+                Быстрый вход как ученик (dev)
+              </button>
+              <button type="button" className="btn-accent w-full" onClick={quickLoginAdmin} disabled={busy}>
+                Быстрый вход как админ (dev)
+              </button>
+            </div>
           )}
 
           <button
@@ -121,6 +232,58 @@ export default function LoginClient() {
           </button>
         </div>
       </div>
+
+      {/* Forgot password modal */}
+      {forgotOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Восстановление пароля"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setForgotOpen(false);
+          }}
+        >
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md card-elevated p-6 md:p-8 space-y-4">
+            <div>
+              <h2 className="text-xl font-extrabold">Восстановление пароля</h2>
+              <p className="text-sm text-muted-foreground mt-1">Введи почту — мы отправим новый пароль.</p>
+            </div>
+
+            <label className="block text-sm font-medium">
+              Email
+              <input
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                placeholder="you@example.com"
+                autoComplete="email"
+                inputMode="email"
+              />
+            </label>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                className="w-full rounded-2xl border border-border/60 bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors"
+                onClick={() => setForgotOpen(false)}
+                disabled={busy}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn-primary w-full"
+                onClick={() => forgotPassword(forgotEmail.trim().toLowerCase())}
+                disabled={busy || !forgotEmail.trim()}
+              >
+                {busy ? '...' : 'Отправить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

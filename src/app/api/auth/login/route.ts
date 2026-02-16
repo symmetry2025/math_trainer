@@ -16,6 +16,8 @@ export async function POST(req: Request) {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return NextResponse.json({ error: 'invalid_credentials' }, { status: 401 });
 
+  if (!user.emailVerifiedAt) return NextResponse.json({ error: 'email_not_verified' }, { status: 403 });
+
   const token = newToken();
   await prisma.session.create({
     data: { userId: user.id, tokenHash: hashToken(token), expiresAt: expiresAtFromNow() },

@@ -68,6 +68,23 @@ const TRAINER_CONFIGS: Record<string, TrainerConfig> = {
     race: { problems: 10 },
     npcSpeeds: { 1: 12, 2: 9, 3: 6 },
   },
+  // Grade-3 column addition variants (within 1000)
+  'column-add-3d-2d': {
+    id: 'column-add-3d-2d',
+    name: 'Трёхзначное и двузначное — до 1000',
+    accuracy: { problems: 10 },
+    speed: { problems: 6, timeLimit: 90 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 16, 2: 12, 3: 9 },
+  },
+  'column-add-3d-3d': {
+    id: 'column-add-3d-3d',
+    name: 'Сумма трёхзначных — до 1000',
+    accuracy: { problems: 10 },
+    speed: { problems: 6, timeLimit: 90 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 18, 2: 14, 3: 10 },
+  },
   'column-subtraction': {
     id: 'column-subtraction',
     name: 'Вычитание в столбик',

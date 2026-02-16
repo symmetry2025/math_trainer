@@ -7,6 +7,8 @@ export type ColumnAdditionVariant =
   | '2d-1d-carry'
   | '2d-2d-no-carry'
   | '2d-2d-carry'
+  | '3d-2d'
+  | '3d-3d'
   | null;
 
 function randInt(min: number, max: number) {
@@ -41,6 +43,28 @@ function generateVariantProblem(variant: Exclude<ColumnAdditionVariant, null>): 
     const num1 = aT * 10 + aO;
     const num2 = Math.max(10, bTClamped * 10 + bO);
     return { numbers: [num1, num2] };
+  }
+  if (variant === '3d-2d') {
+    // 3-digit + 2-digit, sum <= 999
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const num1 = randInt(100, 999);
+      const maxB = 999 - num1;
+      if (maxB < 10) continue;
+      const num2 = randInt(10, Math.min(99, maxB));
+      return { numbers: [num1, num2] };
+    }
+    return { numbers: [340, 57] };
+  }
+  if (variant === '3d-3d') {
+    // 3-digit + 3-digit, sum <= 999
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const num1 = randInt(100, 899);
+      const maxB = 999 - num1;
+      if (maxB < 100) continue;
+      const num2 = randInt(100, Math.min(899, maxB));
+      return { numbers: [num1, num2] };
+    }
+    return { numbers: [478, 356] };
   }
   // 2d-2d-carry: force ones carry, but avoid 3-digit result (tens sum + carry < 10)
   // IMPORTANT: if aO = 0, it's impossible to force a carry with a single digit (bO is 0..9).

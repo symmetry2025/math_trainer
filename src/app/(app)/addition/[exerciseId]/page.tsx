@@ -10,10 +10,12 @@ import { makeArithmeticEquationDefinition } from '../../../../trainers/arithmeti
 import { makeColumnDefinition } from '../../../../trainers/column/columnDefinition';
 import { makeNumberCompositionDefinition } from '../../../../trainers/visual/numberCompositionDefinition';
 import { makeTableFillDefinition } from '../../../../trainers/visual/tableFillDefinition';
+import { makeSumTableDefinition } from '../../../../trainers/visual/sumTableDefinition';
 import { MENTAL_MATH_CONFIGS } from '../../../../data/mentalMathConfig';
 import { ARITHMETIC_EQUATION_CONFIGS } from '../../../../data/arithmeticEquationConfig';
 import { NUMBER_COMPOSITION_CONFIGS } from '../../../../data/numberCompositionConfig';
 import { TABLE_FILL_CONFIGS } from '../../../../data/tableFillConfig';
+import { SUM_TABLE_CONFIGS } from '../../../../data/sumTableConfig';
 
 export default function AdditionTrainerPage(props: { params: { exerciseId: string } }) {
   const exerciseId = String(props.params.exerciseId || '').trim();
@@ -36,6 +38,10 @@ export default function AdditionTrainerPage(props: { params: { exerciseId: strin
             ? ('2d-2d-no-carry' as const)
             : exerciseId === 'column-add-2d-2d-carry'
               ? ('2d-2d-carry' as const)
+              : exerciseId === 'column-add-3d-2d'
+                ? ('3d-2d' as const)
+                : exerciseId === 'column-add-3d-3d'
+                  ? ('3d-3d' as const)
               : null;
 
     if (!variant) {
@@ -50,6 +56,9 @@ export default function AdditionTrainerPage(props: { params: { exerciseId: strin
   }
   if (Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId)) {
     return <TrainerFlow definition={makeTableFillDefinition({ trainerId: exerciseId, backHref: '/addition' })} />;
+  }
+  if (Object.prototype.hasOwnProperty.call(SUM_TABLE_CONFIGS, exerciseId)) {
+    return <TrainerFlow definition={makeSumTableDefinition({ trainerId: exerciseId, backHref: '/addition' })} />;
   }
   if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
     return <TrainerFlow definition={makeMentalMathDefinition({ trainerId: exerciseId, backHref: '/addition' })} />;

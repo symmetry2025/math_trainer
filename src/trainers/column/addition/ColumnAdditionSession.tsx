@@ -19,6 +19,8 @@ interface ColumnAdditionSessionProps {
   variant?: ColumnAdditionVariant;
   totalProblems?: number;
   onComplete?: (mistakes: number) => void;
+  /** Live mistakes updates (for canonical HUD in TrainerFlow) */
+  onMistakesChange?: (mistakes: number) => void;
   onProblemSolved?: (solvedCount: number, totalProblems: number) => void;
   hideHeader?: boolean;
   hideProgress?: boolean;
@@ -31,6 +33,7 @@ export default function ColumnAdditionSession({
   variant = null,
   totalProblems = 10,
   onComplete,
+  onMistakesChange,
   onProblemSolved,
   hideHeader = false,
   hideProgress = false,
@@ -53,12 +56,19 @@ export default function ColumnAdditionSession({
   const prevShowingSuccessRef = useRef(false);
   const wrongTimerRef = useRef<number | null>(null);
   const onCompleteRef = useRef(onComplete);
+  const onMistakesChangeRef = useRef(onMistakesChange);
   const onProblemSolvedRef = useRef(onProblemSolved);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
+    onMistakesChangeRef.current = onMistakesChange;
     onProblemSolvedRef.current = onProblemSolved;
-  }, [onComplete, onProblemSolved]);
+  }, [onComplete, onMistakesChange, onProblemSolved]);
+
+  // Live mistakes for canonical session header (even when this session is embedded).
+  useEffect(() => {
+    onMistakesChangeRef.current?.(Math.max(0, totalMistakes + state.mistakesCount));
+  }, [totalMistakes, state.mistakesCount]);
 
   // SFX: wrong answer when mistakes increase.
   useEffect(() => {

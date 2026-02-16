@@ -65,18 +65,42 @@ jobs:
             cd /opt/math_trainer/prod
             ENV_FILE="./.env"
 
+            sanitize_env_value() {
+              # Replace CR/LF with spaces to avoid breaking .env format.
+              local v="${1:-}"
+              v="${v//$'\r'/ }"
+              v="${v//$'\n'/ }"
+              echo "$v"
+            }
+
+            clean_env_file_in_place() {
+              local file="$1"
+              [[ -f "$file" ]] || return 0
+              # Keep only: empty lines, comments, KEY=VALUE lines. Drop everything else to avoid docker compose parse errors.
+              awk '
+                /^[[:space:]]*$/ { print; next }
+                /^[[:space:]]*#/ { print; next }
+                /^[A-Za-z_][A-Za-z0-9_]*=/ { print; next }
+                { print "[deploy] dropped invalid .env line " NR > "/dev/stderr" }
+              ' "$file" > "$file.__deploy_clean__"
+              mv "$file.__deploy_clean__" "$file"
+            }
+
             upsert_env_var() {
               local key="$1"
               local value="$2"
               local file="$3"
+              value="$(sanitize_env_value "$value")"
               local esc="${value//\\/\\\\}"
               esc="${esc//\"/\\\"}"
               local line="${key}=\"${esc}\""
-              if [[ -f "$file" ]] && grep -qE "^${key}=" "$file"; then
-                sed -i -E "s|^${key}=.*$|${line}|" "$file"
-              else
-                printf "\n%s\n" "$line" >> "$file"
+              local tmp
+              tmp="$(mktemp)"
+              if [[ -f "$file" ]]; then
+                grep -vE "^${key}=" "$file" > "$tmp" || true
               fi
+              printf "%s\n" "$line" >> "$tmp"
+              mv "$tmp" "$file"
             }
 
             maybe_upsert_env_var() {
@@ -92,6 +116,7 @@ jobs:
 
             touch "$ENV_FILE"
             chmod 600 "$ENV_FILE" || true
+            clean_env_file_in_place "$ENV_FILE"
 
             maybe_upsert_env_var SMTP_HOST "${SMTP_HOST:-}" "$ENV_FILE"
             maybe_upsert_env_var SMTP_PORT "${SMTP_PORT:-}" "$ENV_FILE"

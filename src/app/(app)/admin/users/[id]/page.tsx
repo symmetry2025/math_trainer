@@ -10,9 +10,53 @@ type UserDto = {
   displayName: string | null;
   role: 'student' | 'parent' | 'admin';
   emailVerifiedAt: string | null;
+  trialEndsAt: string | null;
+  billingStatus: 'none' | 'active' | 'past_due' | 'cancelled';
+  paidUntil: string | null;
+  cpSubscriptionId: string | null;
+  cpCardMask: string | null;
+  billingUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+function toLocalInputValue(iso: string | null): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  } catch {
+    return '';
+  }
+}
+
+function fromLocalInputValue(v: string): string | null {
+  const s = String(v || '').trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object';
+}
+
+function pickRole(v: unknown): 'student' | 'parent' | 'admin' {
+  if (v === 'student' || v === 'parent' || v === 'admin') return v;
+  return 'student';
+}
+
+function pickBillingStatus(v: unknown): 'none' | 'active' | 'past_due' | 'cancelled' {
+  if (v === 'none' || v === 'active' || v === 'past_due' || v === 'cancelled') return v;
+  return 'none';
+}
 
 export default function AdminUserPage() {
   const params = useParams<{ id: string }>();
@@ -30,6 +74,9 @@ export default function AdminUserPage() {
   const [role, setRole] = useState<'student' | 'parent' | 'admin'>('student');
   const [emailVerified, setEmailVerified] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [trialEndsAt, setTrialEndsAt] = useState('');
+  const [paidUntil, setPaidUntil] = useState('');
+  const [billingStatus, setBillingStatus] = useState<'none' | 'active' | 'past_due' | 'cancelled'>('none');
 
   useEffect(() => {
     let cancelled = false;
@@ -38,18 +85,22 @@ export default function AdminUserPage() {
       setError(null);
       try {
         const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'GET', credentials: 'include', cache: 'no-store' });
-        const body: any = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => null);
         if (cancelled) return;
         if (!res.ok) {
-          setError(body?.error || 'Не удалось загрузить пользователя');
+          const msg = isRecord(body) && typeof body.error === 'string' ? body.error : null;
+          setError(msg || 'Не удалось загрузить пользователя');
           return;
         }
-        const user: UserDto | null = body?.user ?? null;
+        const user = isRecord(body) && isRecord(body.user) ? (body.user as UserDto) : null;
         setU(user);
         setEmail(String(user?.email ?? ''));
         setDisplayName(String(user?.displayName ?? ''));
-        setRole((user?.role as any) || 'student');
+        setRole(pickRole(user?.role));
         setEmailVerified(!!user?.emailVerifiedAt);
+        setTrialEndsAt(toLocalInputValue(user?.trialEndsAt ?? null));
+        setPaidUntil(toLocalInputValue(user?.paidUntil ?? null));
+        setBillingStatus(pickBillingStatus(user?.billingStatus));
       } catch {
         if (cancelled) return;
         setError('Ошибка сети');
@@ -77,23 +128,54 @@ export default function AdminUserPage() {
           role,
           emailVerified,
           ...(newPassword.trim() ? { newPassword } : {}),
+          billingStatus,
+          trialEndsAt: fromLocalInputValue(trialEndsAt),
+          paidUntil: fromLocalInputValue(paidUntil),
         }),
       });
-      const body: any = await res.json().catch(() => ({}));
+      const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         setError(
-          body?.error === 'email_taken'
+          isRecord(body) && body.error === 'email_taken'
             ? 'Email уже занят'
-            : body?.error === 'invalid_password'
+            : isRecord(body) && body.error === 'invalid_password'
               ? 'Пароль должен быть минимум 6 символов'
-              : body?.error || 'Не удалось сохранить',
+              : (isRecord(body) && typeof body.error === 'string' ? body.error : null) || 'Не удалось сохранить',
         );
         return;
       }
-      const user: UserDto | null = body?.user ?? null;
+      const user = isRecord(body) && isRecord(body.user) ? (body.user as UserDto) : null;
       setU(user);
       setInfo('Сохранено');
       setNewPassword('');
+      setTrialEndsAt(toLocalInputValue(user?.trialEndsAt ?? null));
+      setPaidUntil(toLocalInputValue(user?.paidUntil ?? null));
+      setBillingStatus(pickBillingStatus(user?.billingStatus));
+    } catch {
+      setError('Ошибка сети');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelProviderSub = async () => {
+    setSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}/cancel-subscription`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { accept: 'application/json' },
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = isRecord(body) && typeof body.error === 'string' ? body.error : null;
+        setError(msg || 'Не удалось отменить подписку');
+        return;
+      }
+      setInfo('Подписка отменена у провайдера');
+      window.location.reload();
     } catch {
       setError('Ошибка сети');
     } finally {
@@ -154,7 +236,7 @@ export default function AdminUserPage() {
                 Роль
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
+                  onChange={(e) => setRole(pickRole(e.target.value))}
                   className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="student">student</option>
@@ -186,6 +268,66 @@ export default function AdminUserPage() {
                   />
                 </label>
                 <p className="text-xs text-muted-foreground mt-1">После смены пароля все активные сессии пользователя будут сброшены.</p>
+              </div>
+
+              <div className="pt-4 border-t border-border/40 space-y-3">
+                <div className="text-sm font-semibold">Подписка / доступ</div>
+
+                <label className="block text-sm font-medium">
+                  Статус подписки
+                  <select
+                    value={billingStatus}
+                    onChange={(e) => setBillingStatus(pickBillingStatus(e.target.value))}
+                    className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="none">none</option>
+                    <option value="active">active</option>
+                    <option value="past_due">past_due</option>
+                    <option value="cancelled">cancelled</option>
+                  </select>
+                </label>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <label className="block text-sm font-medium">
+                    Trial до
+                    <input
+                      value={trialEndsAt}
+                      onChange={(e) => setTrialEndsAt(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                      type="datetime-local"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    Оплачено до
+                    <input
+                      value={paidUntil}
+                      onChange={(e) => setPaidUntil(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                      type="datetime-local"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid gap-1 text-xs text-muted-foreground">
+                  <div>
+                    CloudPayments subscriptionId: <span className="font-mono">{u.cpSubscriptionId || '—'}</span>
+                  </div>
+                  <div>
+                    Карта: <span className="font-mono">{u.cpCardMask || '—'}</span>
+                  </div>
+                  <div>Billing updated: {u.billingUpdatedAt ? new Date(u.billingUpdatedAt).toLocaleString() : '—'}</div>
+                </div>
+
+                {u.cpSubscriptionId ? (
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-border/60 bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors"
+                    onClick={cancelProviderSub}
+                    disabled={saving}
+                  >
+                    Отменить подписку у провайдера
+                  </button>
+                ) : null}
               </div>
             </div>
 

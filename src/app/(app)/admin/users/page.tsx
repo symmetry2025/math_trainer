@@ -9,9 +9,26 @@ type UserRow = {
   displayName: string | null;
   role: 'student' | 'parent' | 'admin';
   emailVerifiedAt: string | null;
+  trialEndsAt: string | null;
+  billingStatus: 'none' | 'active' | 'past_due' | 'cancelled';
+  paidUntil: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+function billingBadge(u: UserRow) {
+  const now = Date.now();
+  const trial = u.trialEndsAt ? new Date(u.trialEndsAt).getTime() > now : false;
+  if (trial) return <span className="inline-flex rounded-full bg-primary/10 text-primary px-2 py-0.5 font-semibold">trial</span>;
+  if (u.billingStatus === 'active') return <span className="inline-flex rounded-full bg-primary/10 text-primary px-2 py-0.5 font-semibold">active</span>;
+  if (u.billingStatus === 'past_due') return <span className="inline-flex rounded-full bg-destructive/10 text-destructive px-2 py-0.5 font-semibold">past_due</span>;
+  if (u.billingStatus === 'cancelled') return <span className="inline-flex rounded-full bg-muted px-2 py-0.5 font-semibold">cancelled</span>;
+  return <span className="inline-flex rounded-full bg-muted px-2 py-0.5 font-semibold">none</span>;
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object';
+}
 
 export default function AdminUsersPage() {
   const [rows, setRows] = useState<UserRow[]>([]);
@@ -26,13 +43,15 @@ export default function AdminUsersPage() {
       setError(null);
       try {
         const res = await fetch('/api/admin/users', { method: 'GET', credentials: 'include', cache: 'no-store' });
-        const body: any = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => null);
         if (cancelled) return;
         if (!res.ok) {
-          setError(body?.error || 'Не удалось загрузить пользователей');
+          const msg = isRecord(body) && typeof body.error === 'string' ? body.error : null;
+          setError(msg || 'Не удалось загрузить пользователей');
           return;
         }
-        setRows(Array.isArray(body?.users) ? body.users : []);
+        const users = isRecord(body) && Array.isArray(body.users) ? (body.users as UserRow[]) : [];
+        setRows(users);
       } catch {
         if (cancelled) return;
         setError('Ошибка сети');
@@ -76,13 +95,14 @@ export default function AdminUsersPage() {
         {!busy ? (
           <div className="card-elevated overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-[860px] w-full text-sm">
+              <table className="min-w-[980px] w-full text-sm">
                 <thead className="bg-muted/40">
                   <tr className="text-left">
                     <th className="px-4 py-3 font-semibold">Email</th>
                     <th className="px-4 py-3 font-semibold">Имя</th>
                     <th className="px-4 py-3 font-semibold">Роль</th>
                     <th className="px-4 py-3 font-semibold">Почта</th>
+                    <th className="px-4 py-3 font-semibold">Биллинг</th>
                     <th className="px-4 py-3 font-semibold">Создан</th>
                     <th className="px-4 py-3 font-semibold">ID</th>
                   </tr>
@@ -106,13 +126,14 @@ export default function AdminUsersPage() {
                           <span className="inline-flex rounded-full bg-destructive/10 text-destructive px-2 py-0.5 font-semibold">не подтверждена</span>
                         )}
                       </td>
+                      <td className="px-4 py-3">{billingBadge(u)}</td>
                       <td className="px-4 py-3 tabular-nums text-muted-foreground">{new Date(u.createdAt).toLocaleString()}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{u.id}</td>
                     </tr>
                   ))}
                   {!filtered.length ? (
                     <tr>
-                      <td className="px-4 py-6 text-muted-foreground" colSpan={6}>
+                      <td className="px-4 py-6 text-muted-foreground" colSpan={7}>
                         Ничего не найдено
                       </td>
                     </tr>

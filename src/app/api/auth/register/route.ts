@@ -34,7 +34,9 @@ export async function POST(req: Request) {
   if (exists) return NextResponse.json({ error: 'email_taken' }, { status: 409 });
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const now = new Date();
   const user = await prisma.user.create({
+    // Trial should start from the first successful login, not from registration.
     data: { email, passwordHash, role: 'student', emailVerifiedAt: null },
     select: { id: true, email: true },
   });
@@ -42,7 +44,6 @@ export async function POST(req: Request) {
   // Create a one-time email confirmation token.
   const token = randomBytes(32).toString('base64url');
   const tokenHash = hashToken(token);
-  const now = new Date();
   const expiresAt = new Date(now.getTime() + emailConfirmTtlHours() * 60 * 60_000);
   await prisma.emailConfirmationToken.create({
     data: { userId: user.id, tokenHash, expiresAt },

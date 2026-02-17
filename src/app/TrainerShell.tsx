@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { BarChart3, Calculator, ChevronRight, Divide, Gem, LogOut, Menu, Minus, Moon, Plus, Settings, Sun, Trophy, User, Users, X } from 'lucide-react';
+import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Gem, LogOut, Menu, Minus, Moon, Plus, Settings, Sun, Trophy, User, Users, X } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useCrystals } from '../lib/useCrystals';
@@ -423,6 +423,17 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </Link>
               ) : null}
 
+              {auth.status === 'authed' && !isAdmin ? (
+                <Link
+                  className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
+                  href="/billing"
+                  title="Подписка"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <CreditCard className="w-5 h-5 text-muted-foreground" />
+                </Link>
+              ) : null}
+
               <div className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center" title={`Кристаллы: ${totalCrystals}`}>
                 <div className="flex items-center gap-1 text-xs font-semibold text-sidebar-foreground">
                   <Gem className="w-4 h-4 text-brand" />
@@ -501,6 +512,17 @@ export function TrainerShell(props: { children: ReactNode }) {
                 >
                   <Settings className="w-4 h-4" />
                   Настройки
+                </Link>
+              ) : null}
+
+              {auth.status === 'authed' && !isAdmin ? (
+                <Link
+                  href="/billing"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Подписка
                 </Link>
               ) : null}
             </>

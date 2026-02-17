@@ -22,6 +22,7 @@ export function middleware(req: NextRequest) {
     /^\/(addition|subtraction|multiplication|division)(\/|$)/.test(pathname) ||
     /^\/class-\d+\/(addition|subtraction|multiplication|division)(\/|$)/.test(pathname) ||
     pathname === '/settings' ||
+    pathname === '/billing' ||
     pathname === '/admin' ||
     pathname.startsWith('/admin/') ||
     pathname === '/progress' ||

@@ -1,0 +1,105 @@
+import { NextResponse } from 'next/server';
+
+import { prisma } from '../../../../../lib/db';
+import { cloudPaymentsCreateSubscription } from '../../../../../lib/cloudpayments';
+import { BILLING_CURRENCY, BILLING_PRICE_RUB } from '../../../../../lib/billingConstants';
+import { getCpSignatureHeader, verifyCpWebhookSignature } from '../../../../../lib/cloudpaymentsWebhooks';
+
+function addOneMonthUtc(d: Date): Date {
+  const x = new Date(d.getTime());
+  x.setUTCMonth(x.getUTCMonth() + 1);
+  return x;
+}
+
+export async function POST(req: Request) {
+  const rawBody = await req.text();
+  const sig = getCpSignatureHeader(req);
+  const okSig = verifyCpWebhookSignature({ rawBody, signature: sig });
+  if (!okSig) return NextResponse.json({ code: 13 }, { status: 200 }); // NotAccepted
+
+  const body = JSON.parse(rawBody || '{}');
+  const accountId = typeof body?.AccountId === 'string' ? body.AccountId.trim() : '';
+  const token = typeof body?.Token === 'string' ? body.Token.trim() : '';
+  const email = typeof body?.Email === 'string' ? body.Email.trim() : '';
+  const subscriptionId = typeof body?.SubscriptionId === 'string' ? body.SubscriptionId.trim() : '';
+  const cardFirstSix = typeof body?.CardFirstSix === 'string' ? body.CardFirstSix.trim() : '';
+  const cardLastFour = typeof body?.CardLastFour === 'string' ? body.CardLastFour.trim() : '';
+  const cardMask = cardFirstSix && cardLastFour ? `${cardFirstSix}******${cardLastFour}` : null;
+
+  // Always ACK to avoid retries storm.
+  if (!accountId) return NextResponse.json({ code: 0 }, { status: 200 });
+
+  const now = new Date();
+
+  const user = await prisma.user.findUnique({
+    where: { id: accountId },
+    select: { id: true, email: true, cpSubscriptionId: true, billingStatus: true, paidUntil: true },
+  });
+  if (!user) return NextResponse.json({ code: 0 }, { status: 200 });
+
+  const base = user.paidUntil && user.paidUntil.getTime() > now.getTime() ? user.paidUntil : now;
+  const paidUntil = addOneMonthUtc(base);
+
+  // If this is a recurring payment for an existing subscription — just extend access.
+  if (subscriptionId || user.cpSubscriptionId) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        billingStatus: 'active',
+        paidUntil,
+        billingUpdatedAt: now,
+        ...(subscriptionId ? { cpSubscriptionId: subscriptionId } : {}),
+        ...(cardMask ? { cpCardMask: cardMask } : {}),
+      },
+    });
+    return NextResponse.json({ code: 0 }, { status: 200 });
+  }
+
+  // Initial payment: create a subscription in CloudPayments using the token from Pay notification.
+  if (!token) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, ...(cardMask ? { cpCardMask: cardMask } : {}) },
+    });
+    return NextResponse.json({ code: 0 }, { status: 200 });
+  }
+
+  const startDate = addOneMonthUtc(now).toISOString();
+  try {
+    const created = await cloudPaymentsCreateSubscription({
+      token,
+      accountId: user.id,
+      email: email || user.email,
+      description: `Подписка МатТренер — ${BILLING_PRICE_RUB} ₽/мес`,
+      amount: BILLING_PRICE_RUB,
+      currency: BILLING_CURRENCY,
+      requireConfirmation: false,
+      startDate,
+      interval: 'Month',
+      period: 1,
+    });
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        billingStatus: 'active',
+        paidUntil,
+        billingUpdatedAt: now,
+        cpSubscriptionId: created.id || null,
+        cpToken: token,
+        ...(cardMask ? { cpCardMask: cardMask } : {}),
+      },
+    });
+  } catch (e) {
+    // If subscription creation fails, still keep access (user has paid).
+    // eslint-disable-next-line no-console
+    console.error('[cp/webhook/pay] create subscription failed:', e);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, cpToken: token, ...(cardMask ? { cpCardMask: cardMask } : {}) },
+    });
+  }
+
+  return NextResponse.json({ code: 0 }, { status: 200 });
+}
+

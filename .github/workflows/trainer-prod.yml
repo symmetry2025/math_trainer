@@ -54,12 +54,15 @@ jobs:
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           WEB_BASE_URL: ${{ secrets.WEB_BASE_URL }}
           EMAIL_CONFIRM_TTL_HOURS: ${{ secrets.EMAIL_CONFIRM_TTL_HOURS }}
+          CP_PUBLIC_ID: ${{ secrets.CP_PUBLIC_ID }}
+          CP_API_SECRET: ${{ secrets.CP_API_SECRET }}
+          NEXT_PUBLIC_CP_PUBLIC_ID: ${{ secrets.NEXT_PUBLIC_CP_PUBLIC_ID }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
-          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS
+          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS,CP_PUBLIC_ID,CP_API_SECRET,NEXT_PUBLIC_CP_PUBLIC_ID
           script: |
             set -euo pipefail
             cd /opt/math_trainer/prod
@@ -126,6 +129,9 @@ jobs:
             maybe_upsert_env_var MAIL_FROM "${MAIL_FROM:-}" "$ENV_FILE"
             maybe_upsert_env_var WEB_BASE_URL "${WEB_BASE_URL:-}" "$ENV_FILE"
             maybe_upsert_env_var EMAIL_CONFIRM_TTL_HOURS "${EMAIL_CONFIRM_TTL_HOURS:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_PUBLIC_ID "${CP_PUBLIC_ID:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_API_SECRET "${CP_API_SECRET:-}" "$ENV_FILE"
+            maybe_upsert_env_var NEXT_PUBLIC_CP_PUBLIC_ID "${NEXT_PUBLIC_CP_PUBLIC_ID:-}" "$ENV_FILE"
 
             require_env_key() {
               local key="$1"
@@ -139,11 +145,11 @@ jobs:
             }
 
             missing=0
-            for k in SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM; do
+            for k in SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM CP_PUBLIC_ID CP_API_SECRET NEXT_PUBLIC_CP_PUBLIC_ID; do
               require_env_key "$k" "$ENV_FILE" || missing=1
             done
             if [[ "$missing" -ne 0 ]]; then
-              echo "[deploy] required SMTP env keys are missing in $ENV_FILE; abort deploy" >&2
+              echo "[deploy] required env keys are missing in $ENV_FILE; abort deploy" >&2
               exit 1
             fi
 

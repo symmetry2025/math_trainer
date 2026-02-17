@@ -9,6 +9,15 @@ function normalizeEmail(raw: unknown): string {
   return v;
 }
 
+function parseIsoDateOrNull(raw: unknown): Date | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  if (typeof raw !== 'string') return undefined;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d;
+}
+
 export async function GET(_req: Request, ctx: { params: { id: string } }) {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -19,7 +28,21 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, displayName: true, role: true, emailVerifiedAt: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      role: true,
+      emailVerifiedAt: true,
+      trialEndsAt: true,
+      billingStatus: true,
+      paidUntil: true,
+      cpSubscriptionId: true,
+      cpCardMask: true,
+      billingUpdatedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
   if (!user) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
@@ -29,6 +52,9 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
       emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
+      trialEndsAt: user.trialEndsAt ? user.trialEndsAt.toISOString() : null,
+      paidUntil: user.paidUntil ? user.paidUntil.toISOString() : null,
+      billingUpdatedAt: user.billingUpdatedAt ? user.billingUpdatedAt.toISOString() : null,
     },
   });
 }
@@ -48,10 +74,35 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   const role = roleRaw === 'student' || roleRaw === 'parent' || roleRaw === 'admin' ? roleRaw : null;
   const emailVerified = typeof body?.emailVerified === 'boolean' ? body.emailVerified : null;
   const newPassword = typeof body?.newPassword === 'string' ? body.newPassword : '';
+  const trialEndsAt = parseIsoDateOrNull(body?.trialEndsAt);
+  const paidUntil = parseIsoDateOrNull(body?.paidUntil);
+  const billingStatusRaw = typeof body?.billingStatus === 'string' ? body.billingStatus.trim() : '';
+  const billingStatus =
+    billingStatusRaw === 'none' || billingStatusRaw === 'active' || billingStatusRaw === 'past_due' || billingStatusRaw === 'cancelled'
+      ? billingStatusRaw
+      : null;
 
-  if (!email && displayName === null && !role && emailVerified === null && !newPassword) {
+  const trialEndsAtProvided = body && Object.prototype.hasOwnProperty.call(body, 'trialEndsAt');
+  const paidUntilProvided = body && Object.prototype.hasOwnProperty.call(body, 'paidUntil');
+  const billingStatusProvided = body && Object.prototype.hasOwnProperty.call(body, 'billingStatus');
+
+  if (
+    !email &&
+    displayName === null &&
+    !role &&
+    emailVerified === null &&
+    !newPassword &&
+    !trialEndsAtProvided &&
+    !paidUntilProvided &&
+    !billingStatusProvided
+  ) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
+
+  if ((trialEndsAtProvided && trialEndsAt === undefined) || (paidUntilProvided && paidUntil === undefined)) {
+    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  }
+  if (billingStatusProvided && !billingStatus) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 
   if (email) {
     const exists = await prisma.user.findUnique({ where: { email }, select: { id: true } });
@@ -62,6 +113,7 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   if (newPassword && newPassword.length < 6) return NextResponse.json({ error: 'invalid_password' }, { status: 400 });
 
   const passwordHash = newPassword ? await bcrypt.hash(newPassword, 10) : null;
+  const billingTouched = trialEndsAtProvided || paidUntilProvided || billingStatusProvided;
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.user.update({
       where: { id },
@@ -71,8 +123,26 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
         ...(role ? { role } : {}),
         ...(emailVerified === null ? {} : { emailVerifiedAt: emailVerified ? now : null }),
         ...(passwordHash ? { passwordHash } : {}),
+        ...(trialEndsAtProvided ? { trialEndsAt } : {}),
+        ...(paidUntilProvided ? { paidUntil } : {}),
+        ...(billingStatusProvided ? { billingStatus } : {}),
+        ...(billingTouched ? { billingUpdatedAt: now } : {}),
       },
-      select: { id: true, email: true, displayName: true, role: true, emailVerifiedAt: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        emailVerifiedAt: true,
+        trialEndsAt: true,
+        billingStatus: true,
+        paidUntil: true,
+        cpSubscriptionId: true,
+        cpCardMask: true,
+        billingUpdatedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     if (passwordHash) {
       await tx.session.deleteMany({ where: { userId: id } });
@@ -86,6 +156,9 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
       emailVerifiedAt: updated.emailVerifiedAt ? updated.emailVerifiedAt.toISOString() : null,
+      trialEndsAt: updated.trialEndsAt ? updated.trialEndsAt.toISOString() : null,
+      paidUntil: updated.paidUntil ? updated.paidUntil.toISOString() : null,
+      billingUpdatedAt: updated.billingUpdatedAt ? updated.billingUpdatedAt.toISOString() : null,
     },
   });
 }

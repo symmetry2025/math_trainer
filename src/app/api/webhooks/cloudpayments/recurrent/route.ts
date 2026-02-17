@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { prisma } from '../../../../../lib/db';
-import { getCpSignatureHeader, verifyCpWebhookSignature } from '../../../../../lib/cloudpaymentsWebhooks';
+import { getCpSignatureHeaders, verifyCpWebhookRequest } from '../../../../../lib/cloudpaymentsWebhooks';
 import { parseCpWebhookBody } from '../../../../../lib/cloudpaymentsWebhookBody';
 
 function mapStatus(raw: unknown): 'active' | 'past_due' | 'cancelled' | 'none' {
@@ -15,11 +15,16 @@ function mapStatus(raw: unknown): 'active' | 'past_due' | 'cancelled' | 'none' {
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const contentType = req.headers.get('content-type');
-  const sig = getCpSignatureHeader(req);
-  const okSig = verifyCpWebhookSignature({ rawBody, signature: sig });
+  const { xContentHmac, contentHmac } = getCpSignatureHeaders(req);
+  const okSig = verifyCpWebhookRequest(req, rawBody);
   if (!okSig) {
     // eslint-disable-next-line no-console
-    console.warn('[cp/webhook/recurrent] invalid signature', { hasSig: !!sig });
+    console.warn('[cp/webhook/recurrent] invalid signature', {
+      hasSig: !!(xContentHmac || contentHmac),
+      hasXContentHmac: !!xContentHmac,
+      hasContentHmac: !!contentHmac,
+      contentType,
+    });
     return NextResponse.json({ code: 13 }, { status: 200 });
   }
 

@@ -109,7 +109,68 @@ function safeEqualUtf8(a: string, b: string): boolean {
 }
 
 export function getCpSignatureHeader(req: Request): string | null {
-  // CloudPayments may send X-Content-HMAC / Content-HMAC
-  return req.headers.get('x-content-hmac') ?? req.headers.get('content-hmac');
+  // Backwards-compatible helper: prefer X-Content-HMAC if present.
+  const { xContentHmac, contentHmac } = getCpSignatureHeaders(req);
+  return xContentHmac ?? contentHmac;
+}
+
+export function getCpSignatureHeaders(req: Request): { xContentHmac: string | null; contentHmac: string | null } {
+  // CloudPayments sends two headers:
+  // - X-Content-HMAC: computed from URL decoded (or not encoded) parameters
+  // - Content-HMAC: computed from URL encoded parameters
+  // (see docs "Проверка уведомлений")
+  return {
+    xContentHmac: req.headers.get('x-content-hmac'),
+    contentHmac: req.headers.get('content-hmac'),
+  };
+}
+
+function buildFormDecodedBody(rawBody: string): string {
+  // Reconstruct a deterministic decoded "key=value&..." string.
+  // URLSearchParams uses application/x-www-form-urlencoded decoding (including '+' -> space).
+  const sp = new URLSearchParams(rawBody);
+  const parts: string[] = [];
+  for (const [k, v] of sp.entries()) parts.push(`${k}=${v}`);
+  return parts.join('&');
+}
+
+function decodeWholeFormBody(rawBody: string): string {
+  // Best-effort decode of a full form body string.
+  // Useful because some systems compute HMAC over a URL-decoded string.
+  try {
+    return decodeURIComponent(rawBody.replaceAll('+', ' '));
+  } catch {
+    return rawBody;
+  }
+}
+
+export function verifyCpWebhookRequest(req: Request, rawBody: string): boolean {
+  const { xContentHmac, contentHmac } = getCpSignatureHeaders(req);
+  const ct = (req.headers.get('content-type') ?? '').toLowerCase();
+
+  const rawCandidates = [rawBody, rawBody.trimEnd()];
+
+  const checks: Array<{ sig: string | null; bodies: string[] }> = [];
+
+  // For URL-encoded body, Content-HMAC should match the raw (encoded) body.
+  checks.push({ sig: contentHmac, bodies: rawCandidates });
+
+  // For URL-encoded body, X-Content-HMAC is commonly computed from the decoded parameters.
+  if (ct.includes('application/x-www-form-urlencoded')) {
+    const decoded = buildFormDecodedBody(rawBody);
+    const decodedWhole = decodeWholeFormBody(rawBody);
+    checks.push({ sig: xContentHmac, bodies: [decoded, decoded.trimEnd(), decodedWhole, decodedWhole.trimEnd(), ...rawCandidates] });
+  } else {
+    // For JSON bodies, both headers (if present) should match the raw body.
+    checks.push({ sig: xContentHmac, bodies: rawCandidates });
+  }
+
+  for (const c of checks) {
+    if (!c.sig) continue;
+    for (const b of c.bodies) {
+      if (verifyCpWebhookSignature({ rawBody: b, signature: c.sig })) return true;
+    }
+  }
+  return false;
 }
 

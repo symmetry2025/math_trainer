@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/db';
 import { cloudPaymentsCreateSubscription } from '../../../../../lib/cloudpayments';
 import { BILLING_CURRENCY, getBillingPriceRub } from '../../../../../lib/billingConfig';
-import { getCpSignatureHeader, verifyCpWebhookSignature } from '../../../../../lib/cloudpaymentsWebhooks';
+import { getCpSignatureHeaders, verifyCpWebhookRequest } from '../../../../../lib/cloudpaymentsWebhooks';
 import { parseCpWebhookBody } from '../../../../../lib/cloudpaymentsWebhookBody';
 
 function addOneMonthUtc(d: Date): Date {
@@ -15,11 +15,16 @@ function addOneMonthUtc(d: Date): Date {
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const contentType = req.headers.get('content-type');
-  const sig = getCpSignatureHeader(req);
-  const okSig = verifyCpWebhookSignature({ rawBody, signature: sig });
+  const { xContentHmac, contentHmac } = getCpSignatureHeaders(req);
+  const okSig = verifyCpWebhookRequest(req, rawBody);
   if (!okSig) {
     // eslint-disable-next-line no-console
-    console.warn('[cp/webhook/pay] invalid signature', { hasSig: !!sig });
+    console.warn('[cp/webhook/pay] invalid signature', {
+      hasSig: !!(xContentHmac || contentHmac),
+      hasXContentHmac: !!xContentHmac,
+      hasContentHmac: !!contentHmac,
+      contentType,
+    });
     try {
       const body = parseCpWebhookBody(rawBody, contentType);
       // eslint-disable-next-line no-console

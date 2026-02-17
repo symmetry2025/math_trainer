@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getCurrentUserOrNull } from '../../../../lib/auth';
 import { getBillingInfoByUserId, hasBillingAccess } from '../../../../lib/billing';
+import { cleanEnvValue } from '../../../../lib/env';
 
 export async function GET() {
   const me = await getCurrentUserOrNull();
@@ -10,7 +11,7 @@ export async function GET() {
   const info = await getBillingInfoByUserId(me.id);
   if (!info) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const cpPublicId = String(process.env.NEXT_PUBLIC_CP_PUBLIC_ID ?? '').trim();
+  const cpPublicId = cleanEnvValue(process.env.NEXT_PUBLIC_CP_PUBLIC_ID);
 
   const access = hasBillingAccess({
     role: info.role,

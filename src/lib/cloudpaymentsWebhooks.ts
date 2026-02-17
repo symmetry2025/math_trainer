@@ -1,11 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { cleanEnvValue } from './env';
+
 export function computeCpHmacBase64(body: string, apiSecret: string): string {
   return createHmac('sha256', apiSecret).update(body, 'utf8').digest('base64');
 }
 
 export function getCpApiSecretOrThrow(): string {
-  const apiSecret = String(process.env.CP_API_SECRET ?? '').trim();
+  const apiSecret = cleanEnvValue(process.env.CP_API_SECRET);
   if (!apiSecret) throw new Error('CP_API_SECRET is required');
   return apiSecret;
 }

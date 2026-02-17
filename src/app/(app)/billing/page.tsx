@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUserOrNull } from '../../../lib/auth';
 import { getBillingInfoByUserId, hasBillingAccess, BILLING_PRICE_RUB } from '../../../lib/billing';
 import { BillingClient } from './BillingClient';
+import { cleanEnvValue } from '../../../lib/env';
 
 export default async function BillingPage() {
   const me = await getCurrentUserOrNull();
@@ -11,7 +12,7 @@ export default async function BillingPage() {
   const info = await getBillingInfoByUserId(me.id);
   if (!info) redirect('/login');
 
-  const cpPublicId = String(process.env.NEXT_PUBLIC_CP_PUBLIC_ID ?? '').trim();
+  const cpPublicId = cleanEnvValue(process.env.NEXT_PUBLIC_CP_PUBLIC_ID);
   const baseUrl = String(process.env.WEB_BASE_URL ?? '').trim().replace(/\/+$/, '');
   const returnUrl = baseUrl ? `${baseUrl}/class-2/addition` : '/class-2/addition';
 

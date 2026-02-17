@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { getCpApiSecret } from './cloudpaymentsConfig';
+import { getCpWebhookSecret } from './cloudpaymentsConfig';
 
 export function computeCpHmacBase64(body: string, apiSecret: string | Buffer): string {
   return createHmac('sha256', apiSecret).update(body, 'utf8').digest('base64');
@@ -11,9 +11,9 @@ export function computeCpHmacHex(body: string, apiSecret: string | Buffer): stri
 }
 
 export function getCpApiSecretOrThrow(): string {
-  const apiSecret = getCpApiSecret();
-  if (!apiSecret) throw new Error('CP_API_SECRET is required');
-  return apiSecret;
+  const secret = getCpWebhookSecret();
+  if (!secret) throw new Error('CP_WEBHOOK_SECRET (or CP_API_SECRET fallback) is required');
+  return secret;
 }
 
 function extractSignatureCandidates(raw: string): string[] {

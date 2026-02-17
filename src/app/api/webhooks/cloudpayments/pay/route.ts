@@ -4,6 +4,7 @@ import { prisma } from '../../../../../lib/db';
 import { cloudPaymentsCreateSubscription } from '../../../../../lib/cloudpayments';
 import { BILLING_CURRENCY, getBillingPriceRub } from '../../../../../lib/billingConfig';
 import { getCpSignatureHeader, verifyCpWebhookSignature } from '../../../../../lib/cloudpaymentsWebhooks';
+import { parseCpWebhookBody } from '../../../../../lib/cloudpaymentsWebhookBody';
 
 function addOneMonthUtc(d: Date): Date {
   const x = new Date(d.getTime());
@@ -13,13 +14,14 @@ function addOneMonthUtc(d: Date): Date {
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
+  const contentType = req.headers.get('content-type');
   const sig = getCpSignatureHeader(req);
   const okSig = verifyCpWebhookSignature({ rawBody, signature: sig });
   if (!okSig) {
     // eslint-disable-next-line no-console
     console.warn('[cp/webhook/pay] invalid signature', { hasSig: !!sig });
     try {
-      const body = JSON.parse(rawBody || '{}');
+      const body = parseCpWebhookBody(rawBody, contentType);
       // eslint-disable-next-line no-console
       console.warn('[cp/webhook/pay] invalid signature payload', {
         accountId: typeof body?.AccountId === 'string' ? body.AccountId.trim() : '',
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 13 }, { status: 200 }); // NotAccepted
   }
 
-  const body = JSON.parse(rawBody || '{}');
+  const body = parseCpWebhookBody(rawBody, contentType);
   const accountId = typeof body?.AccountId === 'string' ? body.AccountId.trim() : '';
   const token = typeof body?.Token === 'string' ? body.Token.trim() : '';
   const email = typeof body?.Email === 'string' ? body.Email.trim() : '';

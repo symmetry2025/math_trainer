@@ -58,16 +58,18 @@ jobs:
           BILLING_PRICE_RUB: ${{ vars.BILLING_PRICE_RUB }}
           CP_PUBLIC_ID: ${{ secrets.CP_PUBLIC_ID }}
           CP_API_SECRET: ${{ secrets.CP_API_SECRET }}
+          CP_WEBHOOK_SECRET: ${{ secrets.CP_WEBHOOK_SECRET }}
           NEXT_PUBLIC_CP_PUBLIC_ID: ${{ secrets.NEXT_PUBLIC_CP_PUBLIC_ID }}
           CP_PUBLIC_ID_TEST: ${{ secrets.CP_PUBLIC_ID_TEST }}
           CP_API_SECRET_TEST: ${{ secrets.CP_API_SECRET_TEST }}
+          CP_WEBHOOK_SECRET_TEST: ${{ secrets.CP_WEBHOOK_SECRET_TEST }}
           NEXT_PUBLIC_CP_PUBLIC_ID_TEST: ${{ secrets.NEXT_PUBLIC_CP_PUBLIC_ID_TEST }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
-          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,SMTP_IP_FAMILY,SMTP_ENABLE_PORT25_FALLBACK,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS,CP_MODE,BILLING_PRICE_RUB,CP_PUBLIC_ID,CP_API_SECRET,NEXT_PUBLIC_CP_PUBLIC_ID,CP_PUBLIC_ID_TEST,CP_API_SECRET_TEST,NEXT_PUBLIC_CP_PUBLIC_ID_TEST
+          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,SMTP_IP_FAMILY,SMTP_ENABLE_PORT25_FALLBACK,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS,CP_MODE,BILLING_PRICE_RUB,CP_PUBLIC_ID,CP_API_SECRET,CP_WEBHOOK_SECRET,NEXT_PUBLIC_CP_PUBLIC_ID,CP_PUBLIC_ID_TEST,CP_API_SECRET_TEST,CP_WEBHOOK_SECRET_TEST,NEXT_PUBLIC_CP_PUBLIC_ID_TEST
           script: |
             set -euo pipefail
             cd /opt/math_trainer/staging
@@ -140,9 +142,11 @@ jobs:
             maybe_upsert_env_var BILLING_PRICE_RUB "${BILLING_PRICE_RUB:-}" "$ENV_FILE"
             maybe_upsert_env_var CP_PUBLIC_ID "${CP_PUBLIC_ID:-}" "$ENV_FILE"
             maybe_upsert_env_var CP_API_SECRET "${CP_API_SECRET:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_WEBHOOK_SECRET "${CP_WEBHOOK_SECRET:-}" "$ENV_FILE"
             maybe_upsert_env_var NEXT_PUBLIC_CP_PUBLIC_ID "${NEXT_PUBLIC_CP_PUBLIC_ID:-}" "$ENV_FILE"
             maybe_upsert_env_var CP_PUBLIC_ID_TEST "${CP_PUBLIC_ID_TEST:-}" "$ENV_FILE"
             maybe_upsert_env_var CP_API_SECRET_TEST "${CP_API_SECRET_TEST:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_WEBHOOK_SECRET_TEST "${CP_WEBHOOK_SECRET_TEST:-}" "$ENV_FILE"
             maybe_upsert_env_var NEXT_PUBLIC_CP_PUBLIC_ID_TEST "${NEXT_PUBLIC_CP_PUBLIC_ID_TEST:-}" "$ENV_FILE"
 
             require_env_key() {

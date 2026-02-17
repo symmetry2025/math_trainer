@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { prisma } from '../../../../../lib/db';
 import { getCpSignatureHeader, verifyCpWebhookSignature } from '../../../../../lib/cloudpaymentsWebhooks';
+import { parseCpWebhookBody } from '../../../../../lib/cloudpaymentsWebhookBody';
 
 function mapStatus(raw: unknown): 'active' | 'past_due' | 'cancelled' | 'none' {
   const s = typeof raw === 'string' ? raw : '';
@@ -13,6 +14,7 @@ function mapStatus(raw: unknown): 'active' | 'past_due' | 'cancelled' | 'none' {
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
+  const contentType = req.headers.get('content-type');
   const sig = getCpSignatureHeader(req);
   const okSig = verifyCpWebhookSignature({ rawBody, signature: sig });
   if (!okSig) {
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 13 }, { status: 200 });
   }
 
-  const body = JSON.parse(rawBody || '{}');
+  const body = parseCpWebhookBody(rawBody, contentType);
   const accountId = typeof body?.AccountId === 'string' ? body.AccountId.trim() : '';
   const id = typeof body?.Id === 'string' ? body.Id.trim() : '';
   if (!accountId) return NextResponse.json({ code: 0 }, { status: 200 });

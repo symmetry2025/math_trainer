@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 import type { RenderedEmail } from './mailTemplates';
 
@@ -9,6 +10,8 @@ type SmtpConfig = {
   user: string;
   pass: string;
   from: string;
+  ipFamily: 0 | 4 | 6;
+  enablePort25Fallback: boolean;
 };
 
 function cleanEnvValue(raw: unknown): string {
@@ -30,6 +33,19 @@ function parseBool(raw: string | undefined, fallback: boolean): boolean {
   return fallback;
 }
 
+function parseIpFamily(raw: unknown): 0 | 4 | 6 {
+  const v = String(raw ?? '').trim();
+  if (!v) return 4; // Default to IPv4 to avoid IPv6-first timeouts on many VPS.
+  if (v === '0') return 0;
+  if (v === '4') return 4;
+  if (v === '6') return 6;
+  return 4;
+}
+
+function parseBoolOr(raw: unknown, fallback: boolean): boolean {
+  return parseBool(typeof raw === 'string' ? raw : undefined, fallback);
+}
+
 function readSmtpConfigFromEnv(env: NodeJS.ProcessEnv): SmtpConfig {
   const host = cleanEnvValue(env.SMTP_HOST);
   const portRaw = cleanEnvValue(env.SMTP_PORT);
@@ -38,6 +54,8 @@ function readSmtpConfigFromEnv(env: NodeJS.ProcessEnv): SmtpConfig {
   const user = cleanEnvValue(env.SMTP_USER);
   const pass = cleanEnvValue(env.SMTP_PASS);
   const from = cleanEnvValue(env.MAIL_FROM);
+  const ipFamily = parseIpFamily(env.SMTP_IP_FAMILY);
+  const enablePort25Fallback = parseBoolOr(env.SMTP_ENABLE_PORT25_FALLBACK, false);
 
   if (!host) throw new Error('SMTP_HOST is required');
   if (!portRaw || !Number.isFinite(port)) throw new Error('SMTP_PORT must be a number');
@@ -45,7 +63,7 @@ function readSmtpConfigFromEnv(env: NodeJS.ProcessEnv): SmtpConfig {
   if (!pass) throw new Error('SMTP_PASS is required');
   if (!from) throw new Error('MAIL_FROM is required');
 
-  return { host, port, secure, user, pass, from };
+  return { host, port, secure, user, pass, from, ipFamily, enablePort25Fallback };
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -86,36 +104,51 @@ export async function sendMail(params: { to: string } & RenderedEmail): Promise<
   if (!to) throw new Error('Missing "to"');
 
   const cfg = readSmtpConfigFromEnv(process.env);
-  const transportTimeoutMs = 10_000;
+  const connectionTimeoutMs = 10_000;
+  const greetingTimeoutMs = 10_000;
+  const socketTimeoutMs = 20_000;
   const makeTransport = (overrides?: Partial<Pick<SmtpConfig, 'port' | 'secure'>>) =>
     nodemailer.createTransport({
       host: cfg.host,
       port: overrides?.port ?? cfg.port,
       secure: overrides?.secure ?? cfg.secure,
       auth: { user: cfg.user, pass: cfg.pass },
-      connectionTimeout: transportTimeoutMs,
-      greetingTimeout: transportTimeoutMs,
-      socketTimeout: transportTimeoutMs,
-    });
+      connectionTimeout: connectionTimeoutMs,
+      greetingTimeout: greetingTimeoutMs,
+      socketTimeout: socketTimeoutMs,
+      // Force IPv4 by default (see SMTP_IP_FAMILY) — fixes common VPS IPv6 routing issues.
+      family: cfg.ipFamily === 0 ? undefined : cfg.ipFamily,
+    } as SMTPTransport.Options);
 
   const startedAt = Date.now();
   const attempt = async (label: string, overrides?: Partial<Pick<SmtpConfig, 'port' | 'secure'>>) => {
     const port = overrides?.port ?? cfg.port;
     const secure = overrides?.secure ?? cfg.secure;
     // eslint-disable-next-line no-console
-    console.log(`[mail] sending(${label}) host=${cfg.host} port=${port} secure=${secure} user=${cfg.user} from="${cfg.from}" to="${to}"`);
-    const transporter = makeTransport(overrides);
-    return await withTimeout(
-      transporter.sendMail({
-        from: cfg.from,
-        to,
-        subject: params.subject,
-        text: params.text,
-        html: params.html,
-      }),
-      15_000,
-      'SMTP send timed out',
+    console.log(
+      `[mail] sending(${label}) host=${cfg.host} port=${port} secure=${secure} family=${cfg.ipFamily} user=${cfg.user} from="${cfg.from}" to="${to}"`,
     );
+    const transporter = makeTransport(overrides);
+    try {
+      return await withTimeout(
+        transporter.sendMail({
+          from: cfg.from,
+          to,
+          subject: params.subject,
+          text: params.text,
+          html: params.html,
+        }),
+        30_000,
+        'SMTP send timed out',
+      );
+    } finally {
+      // Best-effort: ensure sockets are closed even when withTimeout triggers.
+      try {
+        transporter.close();
+      } catch {
+        // ignore
+      }
+    }
   };
 
   try {
@@ -134,19 +167,27 @@ export async function sendMail(params: { to: string } & RenderedEmail): Promise<
     const canFallback = isConnError && ((cfg.port === 465 && cfg.secure === true) || (cfg.port === 587 && cfg.secure === false));
     if (!canFallback) throw err;
 
-    try {
-      const fallback = cfg.port === 465 ? { port: 587, secure: false } : { port: 465, secure: true };
-      const info2 = await attempt('fallback', fallback);
-      const durationMs = Date.now() - startedAt;
-      // eslint-disable-next-line no-console
-      console.log(`[mail] sent via fallback (duration=${durationMs}ms) messageId=${info2.messageId ?? '-'}`);
-      return { messageId: info2.messageId };
-    } catch (err2) {
-      const durationMs = Date.now() - startedAt;
-      // eslint-disable-next-line no-console
-      console.error(`[mail] send failed (fallback) (duration=${durationMs}ms)`, serializeMailError(err2));
-      throw err;
+    const fallbacks: Array<{ label: string; port: number; secure: boolean }> = [];
+    if (cfg.port === 465) fallbacks.push({ label: 'fallback', port: 587, secure: false });
+    if (cfg.port === 587) fallbacks.push({ label: 'fallback', port: 465, secure: true });
+    if (cfg.enablePort25Fallback) fallbacks.push({ label: 'fallback25', port: 25, secure: false });
+
+    let lastErr: unknown = null;
+    for (const fb of fallbacks) {
+      try {
+        const info2 = await attempt(fb.label, { port: fb.port, secure: fb.secure });
+        const durationMs = Date.now() - startedAt;
+        // eslint-disable-next-line no-console
+        console.log(`[mail] sent via ${fb.label} (duration=${durationMs}ms) messageId=${info2.messageId ?? '-'}`);
+        return { messageId: info2.messageId };
+      } catch (e2) {
+        lastErr = e2;
+        const durationMs = Date.now() - startedAt;
+        // eslint-disable-next-line no-console
+        console.error(`[mail] send failed (${fb.label}) (duration=${durationMs}ms)`, serializeMailError(e2));
+      }
     }
+    throw lastErr || err;
   }
 }
 

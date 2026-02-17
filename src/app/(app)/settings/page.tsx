@@ -61,6 +61,16 @@ function daysLeftUntil(iso: string | null): number | null {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60_000)));
 }
 
+function billingStatusRu(billing: BillingDto | null): string {
+  if (!billing) return '—';
+  if (billing.access?.ok && billing.access.reason === 'admin') return 'Администратор';
+  if (billing.access?.ok && billing.access.reason === 'trial') return 'Бесплатный период';
+  if (billing.billingStatus === 'active') return 'Активная подписка';
+  if (billing.billingStatus === 'past_due') return 'Оплата не прошла';
+  if (billing.billingStatus === 'cancelled') return 'Подписка отменена';
+  return 'Подписка не активна';
+}
+
 export default function SettingsPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +87,7 @@ export default function SettingsPage() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingInfo, setBillingInfo] = useState<string | null>(null);
+  const [billingActionId, setBillingActionId] = useState<null | 'pay' | 'cancel'>(null);
 
   const refreshBilling = async (): Promise<BillingDto | null> => {
     const res = await fetch('/api/billing/status', { method: 'GET', credentials: 'include', cache: 'no-store' });
@@ -192,9 +203,17 @@ export default function SettingsPage() {
 
     const invoiceId = `sub-${me.id}-${Date.now()}`;
     const widget = new window.cp.CloudPayments();
+    let watchdog: number | null = null;
     setBillingBusy(true);
+    setBillingActionId('pay');
     try {
       const returnUrl = `${window.location.origin}/settings`;
+      // If the widget is closed without firing callbacks, don't leave UI stuck in "busy".
+      watchdog = window.setTimeout(() => {
+        setBillingBusy(false);
+        setBillingActionId(null);
+      }, 60_000);
+
       widget.pay(
         'charge',
         {
@@ -218,17 +237,23 @@ export default function SettingsPage() {
             const latest = await refreshBilling();
             if (latest?.billingStatus === 'active') break;
           }
-          setBillingInfo('Готово. Если статус не обновился — подожди минуту и обнови страницу.');
+          setBillingInfo('Готово.');
+          if (watchdog) window.clearTimeout(watchdog);
           setBillingBusy(false);
+          setBillingActionId(null);
         },
         async () => {
           setBillingError('Платёж не завершён.');
+          if (watchdog) window.clearTimeout(watchdog);
           setBillingBusy(false);
+          setBillingActionId(null);
         },
       );
     } catch (e: unknown) {
       setBillingError(e instanceof Error ? e.message : 'Не удалось открыть платежную форму');
+      if (watchdog) window.clearTimeout(watchdog);
       setBillingBusy(false);
+      setBillingActionId(null);
     }
   };
 
@@ -236,6 +261,7 @@ export default function SettingsPage() {
     setBillingError(null);
     setBillingInfo(null);
     setBillingBusy(true);
+    setBillingActionId('cancel');
     try {
       const res = await fetch('/api/billing/cancel', { method: 'POST', credentials: 'include' });
       const body: unknown = await res.json().catch(() => null);
@@ -250,6 +276,7 @@ export default function SettingsPage() {
       setBillingError('Ошибка сети');
     } finally {
       setBillingBusy(false);
+      setBillingActionId(null);
     }
   };
 
@@ -280,7 +307,6 @@ export default function SettingsPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold">Подписка</h2>
-                <p className="text-sm text-muted-foreground">Пробный период и оплата</p>
               </div>
               <button type="button" className="btn-primary" onClick={refreshBilling} disabled={billingBusy}>
                 Обновить
@@ -308,21 +334,18 @@ export default function SettingsPage() {
               <div>
                 Статус:{' '}
                 <span className="inline-flex rounded-full bg-muted px-2 py-0.5 font-semibold">
-                  {billing?.access?.ok && billing.access.reason === 'trial'
-                    ? 'trial'
-                    : (billing?.billingStatus ?? '—')}
+                  {billingStatusRu(billing)}
                 </span>
               </div>
               <div>
                 Карта: <span className="font-semibold">{billing?.cpCardMask ?? '—'}</span>
               </div>
-              <div className="text-xs text-muted-foreground">Обновлено: {fmtDate(billing?.billingUpdatedAt ?? null)}</div>
             </div>
 
             {billing?.billingStatus === 'active' ? (
               <div className="flex items-center gap-3">
                 <button type="button" className="btn-primary" onClick={cancelSubscription} disabled={billingBusy}>
-                  Отменить подписку
+                  {billingBusy && billingActionId === 'cancel' ? 'Отмена…' : 'Отменить подписку'}
                 </button>
                 {!billing.cpSubscriptionId ? (
                   <div className="text-xs text-muted-foreground">
@@ -336,11 +359,8 @@ export default function SettingsPage() {
                   Тариф: <span className="font-semibold text-foreground">{BILLING_PRICE_RUB} ₽ / месяц</span>
                 </div>
                 <button type="button" className="btn-primary" onClick={startPayment} disabled={billingBusy}>
-                  {billingBusy ? '...' : 'Оформить подписку'}
+                  {billingBusy && billingActionId === 'pay' ? 'Открываю форму…' : 'Оформить подписку'}
                 </button>
-                <div className="text-xs text-muted-foreground">
-                  После оплаты подписка активируется автоматически (вебхуки CloudPayments).
-                </div>
               </div>
             )}
           </div>

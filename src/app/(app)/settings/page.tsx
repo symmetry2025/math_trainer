@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { BILLING_PRICE_RUB } from '../../../lib/billingConstants';
-
 type Me = {
   id: string;
   email: string;
@@ -12,6 +10,8 @@ type Me = {
 
 type BillingDto = {
   cpPublicId: string | null;
+  cpMode?: 'live' | 'test';
+  priceRub?: number;
   trialEndsAt: string | null;
   billingStatus: 'none' | 'active' | 'past_due' | 'cancelled';
   paidUntil: string | null;
@@ -192,6 +192,7 @@ export default function SettingsPage() {
     setBillingInfo(null);
 
     const cpPublicId = (billing?.cpPublicId || '').trim();
+    const priceRub = Math.max(1, Math.floor(Number(billing?.priceRub ?? 399)));
     if (!cpPublicId) {
       setBillingError('Не настроен Public ID платежного провайдера');
       return;
@@ -218,8 +219,8 @@ export default function SettingsPage() {
         'charge',
         {
           publicId: cpPublicId,
-          description: `Подписка МатТренер — ${BILLING_PRICE_RUB} ₽/мес`,
-          amount: BILLING_PRICE_RUB,
+          description: `Подписка МатТренер — ${priceRub} ₽/мес`,
+          amount: priceRub,
           currency: 'RUB',
           accountId: me.id,
           email: me.email,
@@ -356,7 +357,10 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-2">
                 <div className="text-sm text-muted-foreground">
-                  Тариф: <span className="font-semibold text-foreground">{BILLING_PRICE_RUB} ₽ / месяц</span>
+                  Тариф:{' '}
+                  <span className="font-semibold text-foreground">
+                    {Math.max(1, Math.floor(Number(billing?.priceRub ?? 399)))} ₽ / месяц
+                  </span>
                 </div>
                 <button type="button" className="btn-primary" onClick={startPayment} disabled={billingBusy}>
                   {billingBusy && billingActionId === 'pay' ? 'Открываю форму…' : 'Оформить подписку'}

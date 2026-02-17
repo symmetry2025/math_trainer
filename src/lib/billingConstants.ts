@@ -1,4 +1,3 @@
-export const BILLING_PRICE_RUB = 399;
-export const BILLING_CURRENCY = 'RUB' as const;
-export const TRIAL_DAYS = 7;
+// Kept for backward compatibility (older imports), prefer `billingConfig.ts`.
+export { BILLING_CURRENCY, TRIAL_DAYS } from './billingConfig';
 

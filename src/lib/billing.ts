@@ -1,7 +1,7 @@
 import { prisma } from './db';
-import { BILLING_CURRENCY, BILLING_PRICE_RUB, TRIAL_DAYS } from './billingConstants';
+import { BILLING_CURRENCY, TRIAL_DAYS, getBillingPriceRub } from './billingConfig';
 
-export { BILLING_CURRENCY, BILLING_PRICE_RUB, TRIAL_DAYS };
+export { BILLING_CURRENCY, TRIAL_DAYS, getBillingPriceRub };
 
 export function trialEndsAtFromNow(now = new Date()): Date {
   return new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60_000);

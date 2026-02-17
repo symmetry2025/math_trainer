@@ -54,15 +54,20 @@ jobs:
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           WEB_BASE_URL: ${{ secrets.WEB_BASE_URL }}
           EMAIL_CONFIRM_TTL_HOURS: ${{ secrets.EMAIL_CONFIRM_TTL_HOURS }}
+          CP_MODE: ${{ vars.CP_MODE }}
+          BILLING_PRICE_RUB: ${{ vars.BILLING_PRICE_RUB }}
           CP_PUBLIC_ID: ${{ secrets.CP_PUBLIC_ID }}
           CP_API_SECRET: ${{ secrets.CP_API_SECRET }}
           NEXT_PUBLIC_CP_PUBLIC_ID: ${{ secrets.NEXT_PUBLIC_CP_PUBLIC_ID }}
+          CP_PUBLIC_ID_TEST: ${{ secrets.CP_PUBLIC_ID_TEST }}
+          CP_API_SECRET_TEST: ${{ secrets.CP_API_SECRET_TEST }}
+          NEXT_PUBLIC_CP_PUBLIC_ID_TEST: ${{ secrets.NEXT_PUBLIC_CP_PUBLIC_ID_TEST }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT }}
-          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS,CP_PUBLIC_ID,CP_API_SECRET,NEXT_PUBLIC_CP_PUBLIC_ID
+          envs: SMTP_HOST,SMTP_PORT,SMTP_SECURE,SMTP_USER,SMTP_PASS,MAIL_FROM,WEB_BASE_URL,EMAIL_CONFIRM_TTL_HOURS,CP_MODE,BILLING_PRICE_RUB,CP_PUBLIC_ID,CP_API_SECRET,NEXT_PUBLIC_CP_PUBLIC_ID,CP_PUBLIC_ID_TEST,CP_API_SECRET_TEST,NEXT_PUBLIC_CP_PUBLIC_ID_TEST
           script: |
             set -euo pipefail
             cd /opt/math_trainer/prod
@@ -129,9 +134,14 @@ jobs:
             maybe_upsert_env_var MAIL_FROM "${MAIL_FROM:-}" "$ENV_FILE"
             maybe_upsert_env_var WEB_BASE_URL "${WEB_BASE_URL:-}" "$ENV_FILE"
             maybe_upsert_env_var EMAIL_CONFIRM_TTL_HOURS "${EMAIL_CONFIRM_TTL_HOURS:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_MODE "${CP_MODE:-}" "$ENV_FILE"
+            maybe_upsert_env_var BILLING_PRICE_RUB "${BILLING_PRICE_RUB:-}" "$ENV_FILE"
             maybe_upsert_env_var CP_PUBLIC_ID "${CP_PUBLIC_ID:-}" "$ENV_FILE"
             maybe_upsert_env_var CP_API_SECRET "${CP_API_SECRET:-}" "$ENV_FILE"
             maybe_upsert_env_var NEXT_PUBLIC_CP_PUBLIC_ID "${NEXT_PUBLIC_CP_PUBLIC_ID:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_PUBLIC_ID_TEST "${CP_PUBLIC_ID_TEST:-}" "$ENV_FILE"
+            maybe_upsert_env_var CP_API_SECRET_TEST "${CP_API_SECRET_TEST:-}" "$ENV_FILE"
+            maybe_upsert_env_var NEXT_PUBLIC_CP_PUBLIC_ID_TEST "${NEXT_PUBLIC_CP_PUBLIC_ID_TEST:-}" "$ENV_FILE"
 
             require_env_key() {
               local key="$1"
@@ -145,9 +155,22 @@ jobs:
             }
 
             missing=0
-            for k in SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM CP_PUBLIC_ID CP_API_SECRET NEXT_PUBLIC_CP_PUBLIC_ID; do
+            for k in SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM; do
               require_env_key "$k" "$ENV_FILE" || missing=1
             done
+
+            mode="${CP_MODE:-}"
+            mode="$(echo "$mode" | tr -d '\r\n' | tr '[:upper:]' '[:lower:]')"
+            if [[ "$mode" == "test" ]]; then
+              for k in CP_PUBLIC_ID_TEST CP_API_SECRET_TEST NEXT_PUBLIC_CP_PUBLIC_ID_TEST; do
+                require_env_key "$k" "$ENV_FILE" || missing=1
+              done
+            else
+              for k in CP_PUBLIC_ID CP_API_SECRET NEXT_PUBLIC_CP_PUBLIC_ID; do
+                require_env_key "$k" "$ENV_FILE" || missing=1
+              done
+            fi
+
             if [[ "$missing" -ne 0 ]]; then
               echo "[deploy] required env keys are missing in $ENV_FILE; abort deploy" >&2
               exit 1

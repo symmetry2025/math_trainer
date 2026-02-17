@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { prisma } from '../../../../../lib/db';
 import { cloudPaymentsCreateSubscription } from '../../../../../lib/cloudpayments';
-import { BILLING_CURRENCY, BILLING_PRICE_RUB } from '../../../../../lib/billingConstants';
+import { BILLING_CURRENCY, getBillingPriceRub } from '../../../../../lib/billingConfig';
 import { getCpSignatureHeader, verifyCpWebhookSignature } from '../../../../../lib/cloudpaymentsWebhooks';
 
 function addOneMonthUtc(d: Date): Date {
@@ -54,6 +54,7 @@ export async function POST(req: Request) {
   });
 
   const now = new Date();
+  const priceRub = getBillingPriceRub();
 
   const user = await prisma.user.findUnique({
     where: { id: accountId },
@@ -98,8 +99,8 @@ export async function POST(req: Request) {
       token,
       accountId: user.id,
       email: email || user.email,
-      description: `Подписка МатТренер — ${BILLING_PRICE_RUB} ₽/мес`,
-      amount: BILLING_PRICE_RUB,
+      description: `Подписка МатТренер — ${priceRub} ₽/мес`,
+      amount: priceRub,
       currency: BILLING_CURRENCY,
       requireConfirmation: false,
       startDate,

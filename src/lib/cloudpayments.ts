@@ -4,15 +4,15 @@ type CpResponse<TModel> = {
   Model?: TModel;
 };
 
-import { cleanEnvValue } from './env';
+import { getCpApiSecret, getCpPublicId } from './cloudpaymentsConfig';
 
 function getCpBaseUrl(): string {
   return 'https://api.cloudpayments.ru';
 }
 
 function getCpAuth() {
-  const publicId = cleanEnvValue(process.env.CP_PUBLIC_ID);
-  const apiSecret = cleanEnvValue(process.env.CP_API_SECRET);
+  const publicId = getCpPublicId();
+  const apiSecret = getCpApiSecret();
   if (!publicId) throw new Error('CP_PUBLIC_ID is required');
   if (!apiSecret) throw new Error('CP_API_SECRET is required');
   const basic = Buffer.from(`${publicId}:${apiSecret}`, 'utf8').toString('base64');

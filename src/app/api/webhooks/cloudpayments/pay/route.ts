@@ -15,19 +15,43 @@ export async function POST(req: Request) {
   const rawBody = await req.text();
   const sig = getCpSignatureHeader(req);
   const okSig = verifyCpWebhookSignature({ rawBody, signature: sig });
-  if (!okSig) return NextResponse.json({ code: 13 }, { status: 200 }); // NotAccepted
+  if (!okSig) {
+    // eslint-disable-next-line no-console
+    console.warn('[cp/webhook/pay] invalid signature', { hasSig: !!sig });
+    try {
+      const body = JSON.parse(rawBody || '{}');
+      // eslint-disable-next-line no-console
+      console.warn('[cp/webhook/pay] invalid signature payload', {
+        accountId: typeof body?.AccountId === 'string' ? body.AccountId.trim() : '',
+        invoiceId: typeof body?.InvoiceId === 'string' ? body.InvoiceId.trim() : '',
+      });
+    } catch {
+      // ignore
+    }
+    return NextResponse.json({ code: 13 }, { status: 200 }); // NotAccepted
+  }
 
   const body = JSON.parse(rawBody || '{}');
   const accountId = typeof body?.AccountId === 'string' ? body.AccountId.trim() : '';
   const token = typeof body?.Token === 'string' ? body.Token.trim() : '';
   const email = typeof body?.Email === 'string' ? body.Email.trim() : '';
   const subscriptionId = typeof body?.SubscriptionId === 'string' ? body.SubscriptionId.trim() : '';
+  const invoiceId = typeof body?.InvoiceId === 'string' ? body.InvoiceId.trim() : '';
   const cardFirstSix = typeof body?.CardFirstSix === 'string' ? body.CardFirstSix.trim() : '';
   const cardLastFour = typeof body?.CardLastFour === 'string' ? body.CardLastFour.trim() : '';
   const cardMask = cardFirstSix && cardLastFour ? `${cardFirstSix}******${cardLastFour}` : null;
 
   // Always ACK to avoid retries storm.
   if (!accountId) return NextResponse.json({ code: 0 }, { status: 200 });
+
+  // eslint-disable-next-line no-console
+  console.log('[cp/webhook/pay] received', {
+    accountId,
+    invoiceId,
+    hasToken: !!token,
+    subscriptionId,
+    hasCardMask: !!cardMask,
+  });
 
   const now = new Date();
 
@@ -52,6 +76,8 @@ export async function POST(req: Request) {
         ...(cardMask ? { cpCardMask: cardMask } : {}),
       },
     });
+    // eslint-disable-next-line no-console
+    console.log('[cp/webhook/pay] updated (extend)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
     return NextResponse.json({ code: 0 }, { status: 200 });
   }
 
@@ -61,6 +87,8 @@ export async function POST(req: Request) {
       where: { id: user.id },
       data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, ...(cardMask ? { cpCardMask: cardMask } : {}) },
     });
+    // eslint-disable-next-line no-console
+    console.log('[cp/webhook/pay] updated (no token)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
     return NextResponse.json({ code: 0 }, { status: 200 });
   }
 
@@ -90,6 +118,12 @@ export async function POST(req: Request) {
         ...(cardMask ? { cpCardMask: cardMask } : {}),
       },
     });
+    // eslint-disable-next-line no-console
+    console.log('[cp/webhook/pay] updated (subscription created)', {
+      accountId: user.id,
+      cpSubscriptionId: created.id || null,
+      paidUntil: paidUntil.toISOString(),
+    });
   } catch (e) {
     // If subscription creation fails, still keep access (user has paid).
     // eslint-disable-next-line no-console
@@ -98,6 +132,8 @@ export async function POST(req: Request) {
       where: { id: user.id },
       data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, cpToken: token, ...(cardMask ? { cpCardMask: cardMask } : {}) },
     });
+    // eslint-disable-next-line no-console
+    console.log('[cp/webhook/pay] updated (subscription create failed)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
   }
 
   return NextResponse.json({ code: 0 }, { status: 200 });

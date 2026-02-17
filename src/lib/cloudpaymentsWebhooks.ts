@@ -37,12 +37,25 @@ export function verifyCpWebhookSignature(params: { rawBody: string; signature: s
   const secret = getCpApiSecretOrThrow();
   const expectedBase64 = computeCpHmacBase64(params.rawBody, secret);
   const expectedHex = computeCpHmacHex(params.rawBody, secret);
+  const expectedBase64Norm = normalizeBase64ish(expectedBase64);
   const candidates = extractSignatureCandidates(params.signature);
   for (const c of candidates) {
     if (safeEqualUtf8(c, expectedBase64)) return true;
+    // Accept base64 without padding and url-safe base64 variants.
+    if (safeEqualUtf8(normalizeBase64ish(c), expectedBase64Norm)) return true;
     if (safeEqualUtf8(c.toLowerCase(), expectedHex)) return true;
   }
   return false;
+}
+
+function normalizeBase64ish(raw: string): string {
+  // CloudPayments/clients may send base64 without "=" padding, or url-safe base64.
+  // We normalize for comparison (NOT decoding).
+  return String(raw || '')
+    .trim()
+    .replaceAll('-', '+')
+    .replaceAll('_', '/')
+    .replace(/=+$/g, '');
 }
 
 function safeEqualUtf8(a: string, b: string): boolean {

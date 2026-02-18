@@ -425,5 +425,35 @@
       opacity: 0;
     }
   }
+
+  /* Mobile: avoid horizontal sliding (can be clipped by overflow-hidden). */
+  @media (max-width: 767px) {
+    .animate-card-enter {
+      animation: card-enter-mobile 0.28s ease-out both;
+    }
+    .animate-card-exit {
+      animation: card-exit-mobile 0.28s ease-in both;
+    }
+    @keyframes card-enter-mobile {
+      0% {
+        transform: translateX(24px);
+        opacity: 0;
+      }
+      100% {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes card-exit-mobile {
+      0% {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(-24px);
+        opacity: 0;
+      }
+    }
+  }
 }
 

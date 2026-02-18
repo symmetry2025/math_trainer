@@ -14,11 +14,13 @@ import { makeColumnDefinition } from '../../../trainers/column/columnDefinition'
 import { makeNumberCompositionDefinition } from '../../../trainers/visual/numberCompositionDefinition';
 import { makeTableFillDefinition } from '../../../trainers/visual/tableFillDefinition';
 import { makeSumTableDefinition } from '../../../trainers/visual/sumTableDefinition';
+import { makeSubTableDefinition } from '../../../trainers/visual/subTableDefinition';
 import { MENTAL_MATH_CONFIGS } from '../../../data/mentalMathConfig';
 import { ARITHMETIC_EQUATION_CONFIGS } from '../../../data/arithmeticEquationConfig';
 import { NUMBER_COMPOSITION_CONFIGS } from '../../../data/numberCompositionConfig';
 import { TABLE_FILL_CONFIGS } from '../../../data/tableFillConfig';
 import { SUM_TABLE_CONFIGS } from '../../../data/sumTableConfig';
+import { SUB_TABLE_CONFIGS } from '../../../data/subTableConfig';
 
 // Subtraction deps
 import ColumnSubtractionSession from '../../../trainers/column/subtraction/ColumnSubtractionSession';
@@ -79,8 +81,31 @@ export function ClassOperationTrainerPage(props: { grade: Grade; op: Operation; 
     if (exerciseId === 'column-subtraction') {
       return <TrainerFlow definition={makeColumnDefinition({ trainerId: 'column-subtraction', backHref, Game: ColumnSubtractionSession })} />;
     }
+    if (exerciseId.startsWith('column-sub-')) {
+      const variant =
+        exerciseId === 'column-sub-2d-1d-no-borrow'
+          ? ('2d-1d-no-borrow' as const)
+          : exerciseId === 'column-sub-2d-2d-no-borrow'
+            ? ('2d-2d-no-borrow' as const)
+            : exerciseId === 'column-sub-2d-1d-borrow'
+              ? ('2d-1d-borrow' as const)
+              : exerciseId === 'column-sub-2d-2d-borrow'
+                ? ('2d-2d-borrow' as const)
+                : exerciseId === 'column-sub-3d-2d'
+                  ? ('3d-2d' as const)
+                  : exerciseId === 'column-sub-3d-3d'
+                    ? ('3d-3d' as const)
+                : null;
+      if (variant) {
+        const VariantGame = (p: any) => <ColumnSubtractionSession {...p} variant={variant} />;
+        return <TrainerFlow definition={makeColumnDefinition({ trainerId: exerciseId, backHref, Game: VariantGame })} />;
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
       return <TrainerFlow definition={makeMentalMathDefinition({ trainerId: exerciseId, backHref })} />;
+    }
+    if (Object.prototype.hasOwnProperty.call(SUB_TABLE_CONFIGS, exerciseId)) {
+      return <TrainerFlow definition={makeSubTableDefinition({ trainerId: exerciseId, backHref })} />;
     }
     if (Object.prototype.hasOwnProperty.call(ARITHMETIC_EQUATION_CONFIGS, exerciseId)) {
       return <TrainerFlow definition={makeArithmeticEquationDefinition({ trainerId: exerciseId, backHref })} />;
@@ -91,15 +116,28 @@ export function ClassOperationTrainerPage(props: { grade: Grade; op: Operation; 
     if (exerciseId === 'column-multiplication') {
       return <TrainerFlow definition={makeColumnDefinition({ trainerId: 'column-multiplication', backHref, Game: ColumnMultiplicationSession })} />;
     }
-    if (/^mul-table-(\d+)$/.test(exerciseId)) {
+    if (exerciseId.startsWith('column-mul-')) {
+      const variant = exerciseId === 'column-mul-2d-1d' ? ('2d-1d' as const) : null;
+      if (variant) {
+        const VariantGame = (p: any) => <ColumnMultiplicationSession {...p} variant={variant} />;
+        return <TrainerFlow definition={makeColumnDefinition({ trainerId: exerciseId, backHref, Game: VariantGame })} />;
+      }
+    }
+    if (/^mul-table-(\d+)$/.test(exerciseId) || exerciseId === 'mul-table-full') {
       const def = useMultiplicationTableDefinitionV2({ backHref, exerciseId });
       return <TrainerFlow definition={def} />;
+    }
+    if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
+      return <TrainerFlow definition={makeMentalMathDefinition({ trainerId: exerciseId, backHref })} />;
     }
   }
 
   if (props.op === 'division') {
     if (exerciseId === 'column-division') {
       return <TrainerFlow definition={makeColumnDefinition({ trainerId: 'column-division', backHref, Game: ColumnDivisionSession })} />;
+    }
+    if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
+      return <TrainerFlow definition={makeMentalMathDefinition({ trainerId: exerciseId, backHref })} />;
     }
   }
 

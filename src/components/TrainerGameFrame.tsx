@@ -98,8 +98,8 @@ export function TrainerGameFrame(props: {
         </div>
       ) : null}
 
-      <div ref={fitOuterRef} className="flex-1 min-h-0 overflow-hidden flex flex-col justify-start md:justify-center">
-        <div className="w-full flex justify-center" style={fit ? { height: `${fit.height}px` } : undefined}>
+      <div ref={fitOuterRef} className="flex-1 min-h-0 overflow-x-visible overflow-y-hidden flex flex-col justify-start md:justify-center">
+        <div className="w-full flex justify-center py-2" style={fit ? { height: `${fit.height}px` } : undefined}>
           <div
             ref={fitInnerRef}
             className="w-full"

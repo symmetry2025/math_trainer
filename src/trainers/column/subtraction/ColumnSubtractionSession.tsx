@@ -11,10 +11,11 @@ import { playCorrectSfx, playWrongSfx } from '../../../lib/sfx';
 import { cn } from '../../../lib/utils';
 import { prepareUniqueList } from '../../../lib/uniqueProblems';
 import ColumnSubtractionDisplay from './ColumnSubtractionDisplay';
-import { generateSubtractionProblem, useColumnSubtraction } from './useColumnSubtraction';
+import { generateSubtractionProblem, type ColumnSubtractionVariant, useColumnSubtraction } from './useColumnSubtraction';
 
 interface ColumnSubtractionSessionProps {
   difficulty?: 'easy' | 'medium' | 'hard';
+  variant?: ColumnSubtractionVariant;
   totalProblems?: number;
   onComplete?: (mistakes: number) => void;
   /** Live mistakes updates (for canonical HUD in TrainerFlow) */
@@ -28,6 +29,7 @@ interface ColumnSubtractionSessionProps {
 
 export default function ColumnSubtractionSession({
   difficulty = 'medium',
+  variant,
   totalProblems = 10,
   onComplete,
   onMistakesChange,
@@ -37,7 +39,7 @@ export default function ColumnSubtractionSession({
   embedded = false,
   onBack,
 }: ColumnSubtractionSessionProps) {
-  const { state, currentStep, handleInput, reset } = useColumnSubtraction(difficulty);
+  const { state, currentStep, handleInput, reset } = useColumnSubtraction(difficulty, variant);
 
   const [solvedProblems, setSolvedProblems] = useState(0);
   const [totalMistakes, setTotalMistakes] = useState(0);
@@ -132,23 +134,23 @@ export default function ColumnSubtractionSession({
     processedProblemRef.current = null;
     const list = prepareUniqueList({
       count: totalProblems,
-      make: () => generateSubtractionProblem(difficulty),
+      make: () => generateSubtractionProblem(difficulty, variant),
       keyOf: (p) => `${p.minuend}-${p.subtrahend}`,
     });
     setPreparedProblems(list);
     reset(difficulty, list[0]);
-  }, [reset, difficulty]);
+  }, [reset, difficulty, variant, totalProblems]);
 
   useEffect(() => {
     if (preparedProblems.length === totalProblems) return;
     const list = prepareUniqueList({
       count: totalProblems,
-      make: () => generateSubtractionProblem(difficulty),
+      make: () => generateSubtractionProblem(difficulty, variant),
       keyOf: (p) => `${p.minuend}-${p.subtrahend}`,
     });
     setPreparedProblems(list);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalProblems, difficulty]);
+  }, [totalProblems, difficulty, variant]);
 
   useEffect(() => {
     if (!preparedProblems[0]) return;

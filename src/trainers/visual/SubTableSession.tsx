@@ -9,17 +9,15 @@ import NumberKeyboard from '../../components/NumberKeyboard';
 import { usePhysicalNumberKeyboard } from '../../lib/usePhysicalNumberKeyboard';
 import { DrillStage } from '../drill/engine/DrillStage';
 import { useDrillEngine } from '../drill/engine/useDrillEngine';
-import type { SumTableKind } from '../../data/sumTableConfig';
+import type { SubTableKind } from '../../data/subTableConfig';
 import { generateOptions } from '../../data/mentalMathConfig';
-import { SubstituteLetterSession } from './SubstituteLetterSession';
 
 type Problem = {
   col: number;
-  sum: number;
-  a: number;
-  b: number;
-  missing: 'a' | 'b';
-  letterInMissing?: boolean;
+  minuend: number;
+  subtrahend: number;
+  diff: number;
+  missing: 'minuend' | 'subtrahend' | 'diff';
   options?: number[];
 };
 
@@ -40,78 +38,51 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function makeProblems(args: {
-  kind: SumTableKind;
+  kind: SubTableKind;
   columns: number;
-  sumMin: number;
-  sumMax: number;
+  diffMin: number;
+  diffMax: number;
   knownMin: number;
   knownMax: number;
-  letter?: string;
   isChoiceMode: boolean;
   order?: 'shuffled' | 'byColumn';
 }): Problem[] {
   const columns = Math.max(1, Math.floor(Number(args.columns || 1)));
-  const sumMin = Math.max(2, Math.floor(Number(args.sumMin || 12)));
-  const sumMax = Math.max(sumMin, Math.floor(Number(args.sumMax || sumMin)));
+  const diffMin = Math.max(1, Math.floor(Number(args.diffMin || 12)));
+  const diffMax = Math.max(diffMin, Math.floor(Number(args.diffMax || diffMin)));
   const knownMin = Math.max(1, Math.floor(Number(args.knownMin || 2)));
   const knownMax = Math.max(knownMin, Math.floor(Number(args.knownMax || knownMin)));
 
   const cols: Problem[] = [];
   for (let col = 0; col < columns; col++) {
-    // Make a column like in textbook: sum is shown; one addend known; the other is missing.
-    for (let attempt = 0; attempt < 60; attempt++) {
-      const sum = randInt(sumMin, sumMax);
-      const known = randInt(knownMin, Math.min(knownMax, sum - 1));
-      const missingValue = sum - known;
-      if (missingValue < 1) continue;
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const diff = randInt(diffMin, diffMax);
+      const subtrahend = randInt(knownMin, knownMax);
+      const minuend = subtrahend + diff;
+      if (minuend > 999) continue;
 
-      // Decide which row is missing (a vs b).
-      let missing: 'a' | 'b' = 'b';
-      if (args.kind === 'find-addend') missing = 'b'; // show first addend, find second
-      else if (args.kind === 'find-component') missing = 'a'; // show second addend, find first
-      else {
-        // letter mode: vary which addend is the letter to avoid monotony
-        missing = Math.random() < 0.5 ? 'a' : 'b';
-      }
-
-      const a = missing === 'a' ? missingValue : known;
-      const b = missing === 'b' ? missingValue : known;
-      const correct = missing === 'a' ? a : b;
-
+      const missing: Problem['missing'] =
+        args.kind === 'find-minuend' ? 'minuend' : args.kind === 'find-subtrahend' ? 'subtrahend' : 'diff';
+      const correct = missing === 'minuend' ? minuend : missing === 'subtrahend' ? subtrahend : diff;
       const options = args.isChoiceMode ? generateOptions(correct, 4, { max: 999 }) : undefined;
 
-      cols.push({
-        col,
-        sum,
-        a,
-        b,
-        missing,
-        letterInMissing: args.kind === 'substitute-letter',
-        options,
-      });
+      cols.push({ col, minuend, subtrahend, diff, missing, options });
       break;
     }
   }
 
-  // Default behavior: shuffled play order, stable column indices for UI.
-  // Mobile UX: keep a predictable left-to-right fill order (needed for paging 3 columns at a time).
   const order = args.order ?? 'shuffled';
   return order === 'byColumn' ? cols : shuffle(cols);
 }
 
-export function SumTableSession(props: {
+export function SubTableSession(props: {
   attemptId?: string;
-  kind: SumTableKind;
+  kind: SubTableKind;
   columns: number;
-  sumMin: number;
-  sumMax: number;
+  diffMin: number;
+  diffMax: number;
   knownMin: number;
   knownMax: number;
-  letter?: string;
-  letterValueMin?: number;
-  letterValueMax?: number;
-  addMin?: number;
-  addMax?: number;
   level: 'accuracy-choice' | 'accuracy-input' | 'speed' | 'race';
   starLevel?: 1 | 2 | 3;
   timeLimitSec?: number;
@@ -127,33 +98,6 @@ export function SumTableSession(props: {
     starsEarned?: 0 | 1 | 2 | 3;
   }) => void;
 }) {
-  if (props.kind === 'substitute-letter') {
-    const tableCount = Math.max(1, Math.floor(Number(props.columns || 5)));
-    const letter = (props.letter || 'a').trim() || 'a';
-    const letterValueMin = Math.floor(Number(props.letterValueMin ?? props.knownMin ?? 1));
-    const letterValueMax = Math.max(letterValueMin, Math.floor(Number(props.letterValueMax ?? props.knownMax ?? letterValueMin)));
-    const addMin = Math.floor(Number(props.addMin ?? 10));
-    const addMax = Math.max(addMin, Math.floor(Number(props.addMax ?? 90)));
-
-    return (
-      <SubstituteLetterSession
-        attemptId={props.attemptId}
-        tableCount={tableCount}
-        letter={letter}
-        letterValueMin={letterValueMin}
-        letterValueMax={letterValueMax}
-        addMin={addMin}
-        addMax={addMax}
-        level={props.level}
-        timeLimitSec={props.timeLimitSec}
-        starLevel={props.starLevel}
-        npcSecondsPerProblem={props.npcSecondsPerProblem}
-        setMetrics={props.setMetrics}
-        onFinish={props.onFinish}
-      />
-    );
-  }
-
   const isChoiceMode = props.level === 'accuracy-choice';
   const isSpeed = props.level === 'speed';
   const isRace = props.level === 'race';
@@ -168,7 +112,6 @@ export function SumTableSession(props: {
     const mq = window.matchMedia('(max-width: 767px)');
     const apply = () => setIsMobile(mq.matches);
     apply();
-    // Safari < 14 uses addListener/removeListener.
     const anyMq = mq as any;
     if (typeof anyMq.addEventListener === 'function') {
       anyMq.addEventListener('change', apply);
@@ -181,20 +124,18 @@ export function SumTableSession(props: {
   }, []);
 
   const problems = useMemo(() => {
-    // attemptId forces a reshuffle / restart on retry (TrainerFlow changes attemptId).
     void props.attemptId;
     return makeProblems({
       kind: props.kind,
       columns: props.columns,
-      sumMin: props.sumMin,
-      sumMax: props.sumMax,
+      diffMin: props.diffMin,
+      diffMax: props.diffMax,
       knownMin: props.knownMin,
       knownMax: props.knownMax,
-      letter: props.letter,
       isChoiceMode,
       order: isMobile ? 'byColumn' : 'shuffled',
     });
-  }, [props.attemptId, props.kind, props.columns, props.sumMin, props.sumMax, props.knownMin, props.knownMax, props.letter, isChoiceMode, isMobile]);
+  }, [props.attemptId, props.kind, props.columns, props.diffMin, props.diffMax, props.knownMin, props.knownMax, isChoiceMode, isMobile]);
 
   const total = problems.length;
   const [inputValue, setInputValue] = useState('');
@@ -228,7 +169,7 @@ export function SumTableSession(props: {
   const engine = useDrillEngine<Problem>({
     problems,
     total,
-    answerOf: (p) => (p.missing === 'a' ? p.a : p.b),
+    answerOf: (p) => (p.missing === 'minuend' ? p.minuend : p.missing === 'subtrahend' ? p.subtrahend : p.diff),
     attemptPolicy: isChoiceMode ? 'single' : 'untilCorrect',
     timer: isSpeed ? { mode: 'remaining', totalSeconds, endOnZero: true } : { mode: 'elapsed' },
     wrongResetMs: 600,
@@ -293,7 +234,6 @@ export function SumTableSession(props: {
     };
   }, [isMobile, desiredPageIndex, pageIndex]);
 
-  // Clear input before paint when switching to next cell.
   useLayoutEffect(() => {
     if (engine.selectedAnswer === null && engine.status === null) setInputValue('');
   }, [engine.index, engine.selectedAnswer, engine.status]);
@@ -301,7 +241,7 @@ export function SumTableSession(props: {
   const handleKeyboardInput = useCallback(
     (value: number) => {
       if (engine.selectedAnswer !== null || !problem) return;
-      const correct = problem.missing === 'a' ? problem.a : problem.b;
+      const correct = problem.missing === 'minuend' ? problem.minuend : problem.missing === 'subtrahend' ? problem.subtrahend : problem.diff;
       const next = (inputValue + value.toString()).slice(0, 3);
       setInputValue(next);
       const numValue = Number.parseInt(next, 10);
@@ -325,17 +265,16 @@ export function SumTableSession(props: {
     onBackspace: handleBackspace,
   });
 
-  // Persist filled cells on correct answers.
   useEffect(() => {
     if (!problem) return;
     if (engine.status !== 'correct') return;
-    const correct = problem.missing === 'a' ? problem.a : problem.b;
+    const correct = problem.missing === 'minuend' ? problem.minuend : problem.missing === 'subtrahend' ? problem.subtrahend : problem.diff;
     setFilled((prev) => {
       if (prev[problem.col] === correct) return prev;
       return { ...prev, [problem.col]: correct };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine.status, problem?.col, problem?.a, problem?.b, problem?.missing]);
+  }, [engine.status, problem?.col, problem?.minuend, problem?.subtrahend, problem?.diff, problem?.missing]);
 
   useEffect(() => {
     if (!problem) return;
@@ -391,30 +330,28 @@ export function SumTableSession(props: {
 
   const cellClass =
     'h-12 sm:h-14 min-w-0 px-1 sm:px-2 rounded-xl border-2 flex items-center justify-center text-lg sm:text-2xl font-extrabold tabular-nums';
-
   const labelCellClass = cn(cellClass, 'bg-muted border-border text-xs sm:text-sm font-bold tracking-tight');
 
-  const missingValue = problem.missing === 'a' ? problem.a : problem.b;
-  const showLetter = problem.letterInMissing ? (props.letter || 'a') : null;
+  const missingValue = problem.missing === 'minuend' ? problem.minuend : problem.missing === 'subtrahend' ? problem.subtrahend : problem.diff;
 
-  const renderCellValue = (col: number, which: 'a' | 'b') => {
+  const renderCellValue = (col: number, which: 'minuend' | 'subtrahend') => {
     const isCurrent = col === currentCol;
     const pForCol = problems.find((p) => p.col === col) ?? null;
     if (!pForCol) return <span className="text-muted-foreground/30">?</span>;
 
     const isMissing = pForCol.missing === which;
     if (!isMissing) {
-      return which === 'a' ? pForCol.a : pForCol.b;
+      return which === 'minuend' ? pForCol.minuend : pForCol.subtrahend;
     }
 
     const filledVal = filled[col];
     if (typeof filledVal === 'number') return filledVal;
 
     if (isCurrent) {
-      return <span className={cn(!inputValue ? 'text-muted-foreground/60' : 'text-foreground')}>{inputValue || (showLetter ?? '?')}</span>;
+      return <span className={cn(!inputValue ? 'text-muted-foreground/60' : 'text-foreground')}>{inputValue || '?'}</span>;
     }
 
-    return <span className="text-muted-foreground/30">{showLetter ?? '?'}</span>;
+    return <span className="text-muted-foreground/30">?</span>;
   };
 
   const content = (
@@ -433,7 +370,7 @@ export function SumTableSession(props: {
                   gridTemplateColumns: `${isMobile ? '5.25rem' : '7rem'} repeat(${Math.max(1, visibleCols.length)}, minmax(3.25rem, 1fr))`,
                 }}
               >
-                <div className={labelCellClass}>Слагаемое</div>
+                <div className={labelCellClass}>Уменьшаемое</div>
                 {visibleCols.map((col) => {
                   const isCurrent = col === currentCol;
                   return (
@@ -442,16 +379,16 @@ export function SumTableSession(props: {
                       className={cn(
                         cellClass,
                         'bg-card border-border',
-                        isCurrent && problem.missing === 'a' && 'border-primary/60 bg-primary/5',
-                        engine.status === 'wrong' && isCurrent && problem.missing === 'a' && 'border-destructive/60 bg-destructive/5',
+                        isCurrent && problem.missing === 'minuend' && 'border-primary/60 bg-primary/5',
+                        engine.status === 'wrong' && isCurrent && problem.missing === 'minuend' && 'border-destructive/60 bg-destructive/5',
                       )}
                     >
-                      {renderCellValue(col, 'a')}
+                      {renderCellValue(col, 'minuend')}
                     </div>
                   );
                 })}
 
-                <div className={labelCellClass}>Слагаемое</div>
+                <div className={labelCellClass}>Вычитаемое</div>
                 {visibleCols.map((col) => {
                   const isCurrent = col === currentCol;
                   return (
@@ -460,21 +397,40 @@ export function SumTableSession(props: {
                       className={cn(
                         cellClass,
                         'bg-card border-border',
-                        isCurrent && problem.missing === 'b' && 'border-primary/60 bg-primary/5',
-                        engine.status === 'wrong' && isCurrent && problem.missing === 'b' && 'border-destructive/60 bg-destructive/5',
+                        isCurrent && problem.missing === 'subtrahend' && 'border-primary/60 bg-primary/5',
+                        engine.status === 'wrong' && isCurrent && problem.missing === 'subtrahend' && 'border-destructive/60 bg-destructive/5',
                       )}
                     >
-                      {renderCellValue(col, 'b')}
+                      {renderCellValue(col, 'subtrahend')}
                     </div>
                   );
                 })}
 
-                <div className={labelCellClass}>Сумма</div>
+                <div className={labelCellClass}>Разность</div>
                 {visibleCols.map((col) => {
                   const pForCol = problems.find((p) => p.col === col) ?? null;
+                  const isCurrent = col === currentCol;
+                  const isMissing = pForCol?.missing === 'diff';
+                  const filledVal = typeof filled[col] === 'number' ? filled[col] : null;
+                  const shown = isMissing ? filledVal : pForCol?.diff ?? null;
+
                   return (
-                    <div key={`s-${col}`} className={cn(cellClass, 'bg-muted border-border')}>
-                      {pForCol ? pForCol.sum : <span className="text-muted-foreground/30">?</span>}
+                    <div
+                      key={`d-${col}`}
+                      className={cn(
+                        cellClass,
+                        isMissing ? 'bg-card border-border' : 'bg-muted border-border',
+                        isCurrent && isMissing && 'border-primary/60 bg-primary/5',
+                        engine.status === 'wrong' && isCurrent && isMissing && 'border-destructive/60 bg-destructive/5',
+                      )}
+                    >
+                      {typeof shown === 'number' ? (
+                        shown
+                      ) : isMissing && isCurrent ? (
+                        <span className={cn(!inputValue ? 'text-muted-foreground/60' : 'text-foreground')}>{inputValue || '?'}</span>
+                      ) : (
+                        <span className="text-muted-foreground/30">?</span>
+                      )}
                     </div>
                   );
                 })}
@@ -492,10 +448,7 @@ export function SumTableSession(props: {
                     type="button"
                     disabled={engine.selectedAnswer !== null}
                     onClick={() => engine.submitAnswer(opt)}
-                    className={cn(
-                      'answer-option !px-0 !py-3',
-                      engine.selectedAnswer !== null && 'opacity-60 cursor-not-allowed',
-                    )}
+                    className={cn('answer-option !px-0 !py-3', engine.selectedAnswer !== null && 'opacity-60 cursor-not-allowed')}
                   >
                     {opt}
                   </button>

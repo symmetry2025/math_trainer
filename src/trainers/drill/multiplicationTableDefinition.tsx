@@ -120,11 +120,76 @@ function makePresets(multiplier: number): Array<PresetDefinition<MultiplicationT
   ];
 }
 
+function makePresetsFull(): Array<PresetDefinition<MultiplicationTableConfig, MultiplicationTableProgress>> {
+  const all = [2, 3, 4, 5, 6, 7, 8, 9];
+  const base: Omit<MultiplicationTableConfig, 'presetId' | 'attemptId'> = {
+    order: 'mixed',
+    answerInputMode: 'choice',
+    totalProblems: 20,
+    selectedMultipliers: all,
+    highlightRow: false,
+    helper: null,
+  };
+
+  return [
+    {
+      id: 'lvl1',
+      title: 'Тренировка',
+      description: 'На выбор • по порядку • 20 примеров',
+      defaultConfig: { presetId: 'lvl1', ...base, order: 'ordered', totalProblems: 20, answerInputMode: 'choice' },
+      unlock: { isLocked: () => false },
+      successPolicy: { type: 'minAccuracy', min: 0.8 },
+    },
+    {
+      id: 'lvl2',
+      title: 'Точность',
+      description: 'На выбор • вперемешку • 20 примеров',
+      defaultConfig: { presetId: 'lvl2', ...base, order: 'mixed', totalProblems: 20, answerInputMode: 'choice' },
+      unlock: { isLocked: ({ progress }) => !progress.lvl1, lockedReason: () => 'Сначала пройди Уровень 1' },
+      successPolicy: { type: 'minAccuracy', min: 0.8 },
+    },
+    {
+      id: 'lvl3',
+      title: 'Скорость',
+      description: 'Ввод • вперемешку • 36 примеров',
+      defaultConfig: { presetId: 'lvl3', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual' },
+      unlock: { isLocked: ({ progress }) => !progress.lvl2, lockedReason: () => 'Сначала пройди Уровень 2' },
+      // custom: allow up to 20% mistakes while correcting (untilCorrect mode)
+      successPolicy: { type: 'custom', eval: ({ metrics }) => Number(metrics.mistakes || 0) <= 7, label: 'Не более 7 ошибок' },
+    },
+    {
+      id: 'race:1',
+      title: 'Новичок',
+      description: 'Реши 36 примеров быстрее Новичка • 6с/пример',
+      defaultConfig: { presetId: 'race:1', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual', race: { starLevel: 1, npcSecondsPerProblem: 6 } },
+      unlock: { isLocked: ({ progress }) => !progress.lvl3, lockedReason: () => 'Сначала пройди Уровень 3' },
+      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
+    },
+    {
+      id: 'race:2',
+      title: 'Знаток',
+      description: 'Реши 36 примеров быстрее Знатока • 4с/пример',
+      defaultConfig: { presetId: 'race:2', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual', race: { starLevel: 2, npcSecondsPerProblem: 4 } },
+      unlock: { isLocked: ({ progress }) => progress.raceStars < 1, lockedReason: () => 'Сначала победи ⭐1' },
+      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
+    },
+    {
+      id: 'race:3',
+      title: 'Мастер',
+      description: 'Реши 36 примеров быстрее Мастера • 2с/пример',
+      defaultConfig: { presetId: 'race:3', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual', race: { starLevel: 3, npcSecondsPerProblem: 2 } },
+      unlock: { isLocked: ({ progress }) => progress.raceStars < 2, lockedReason: () => 'Сначала победи ⭐2' },
+      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
+    },
+  ];
+}
+
 function makeMultiplicationTableDefinition(args: {
   backHref: string;
   /** Canonical exercise id from route: `mul-table-<n>` */
   exerciseId: string;
 }): TrainerDefinition<MultiplicationTableProgress, MultiplicationTableConfig> {
+  const isFull = String(args.exerciseId || '').trim() === 'mul-table-full';
   const initialMultiplier = (() => {
     const ex = String(args.exerciseId || '').trim();
     const m = ex.match(/^mul-table-(\d+)$/);
@@ -136,7 +201,7 @@ function makeMultiplicationTableDefinition(args: {
     return 1;
   })();
 
-  const presets = makePresets(initialMultiplier);
+  const presets = isFull ? makePresetsFull() : makePresets(initialMultiplier);
   const dbTrainerId = `arithmetic:${args.exerciseId}`;
   const progressStorageKeyStr = progressStorageKey(dbTrainerId);
 

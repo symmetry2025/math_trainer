@@ -11,10 +11,11 @@ import { playCorrectSfx, playWrongSfx } from '../../../lib/sfx';
 import { cn } from '../../../lib/utils';
 import { prepareUniqueList } from '../../../lib/uniqueProblems';
 import ColumnDisplay from './ColumnDisplay';
-import { generateProblem, useColumnMultiplication } from './useColumnMultiplication';
+import { generateProblem, type ColumnMultiplicationVariant, useColumnMultiplication } from './useColumnMultiplication';
 
 interface ColumnMultiplicationSessionProps {
   difficulty?: 'easy' | 'medium' | 'hard';
+  variant?: ColumnMultiplicationVariant;
   totalProblems?: number;
   onComplete?: (mistakes: number) => void;
   /** Live mistakes updates (for canonical HUD in TrainerFlow) */
@@ -28,6 +29,7 @@ interface ColumnMultiplicationSessionProps {
 
 export default function ColumnMultiplicationSession({
   difficulty = 'medium',
+  variant,
   totalProblems = 10,
   onComplete,
   onMistakesChange,
@@ -37,7 +39,7 @@ export default function ColumnMultiplicationSession({
   embedded = false,
   onBack,
 }: ColumnMultiplicationSessionProps) {
-  const { state, currentStep, handleInput, reset } = useColumnMultiplication(difficulty);
+  const { state, currentStep, handleInput, reset } = useColumnMultiplication(difficulty, variant);
 
   const [solvedProblems, setSolvedProblems] = useState(0);
   const [totalMistakes, setTotalMistakes] = useState(0);
@@ -132,7 +134,7 @@ export default function ColumnMultiplicationSession({
     processedProblemRef.current = null;
     const list = prepareUniqueList({
       count: totalProblems,
-      make: () => generateProblem(difficulty),
+      make: () => generateProblem(difficulty, variant),
       keyOf: (p) => {
         const lo = Math.min(p.multiplicand, p.multiplier);
         const hi = Math.max(p.multiplicand, p.multiplier);
@@ -141,13 +143,13 @@ export default function ColumnMultiplicationSession({
     });
     setPreparedProblems(list);
     reset(difficulty, list[0]);
-  }, [reset, difficulty]);
+  }, [reset, difficulty, variant, totalProblems]);
 
   useEffect(() => {
     if (preparedProblems.length === totalProblems) return;
     const list = prepareUniqueList({
       count: totalProblems,
-      make: () => generateProblem(difficulty),
+      make: () => generateProblem(difficulty, variant),
       keyOf: (p) => {
         const lo = Math.min(p.multiplicand, p.multiplier);
         const hi = Math.max(p.multiplicand, p.multiplier);
@@ -156,7 +158,7 @@ export default function ColumnMultiplicationSession({
     });
     setPreparedProblems(list);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalProblems, difficulty]);
+  }, [totalProblems, difficulty, variant]);
 
   useEffect(() => {
     if (!preparedProblems[0]) return;

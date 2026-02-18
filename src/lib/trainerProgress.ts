@@ -26,6 +26,24 @@ export async function getTrainerProgress(userId: string, trainerId: string): Pro
   return (row?.progress as any) ?? null;
 }
 
+export async function getTrainerProgressMany(
+  userId: string,
+  trainerIds: string[],
+): Promise<Record<string, AnyProgress | null>> {
+  const ids = Array.from(new Set(trainerIds.map((s) => String(s || '').trim()).filter(Boolean)));
+  if (!ids.length) return {};
+
+  const rows = await prisma.trainerProgress.findMany({
+    where: { userId, trainerId: { in: ids } },
+    select: { trainerId: true, progress: true },
+  });
+
+  const map: Record<string, AnyProgress | null> = Object.create(null);
+  for (const id of ids) map[id] = null;
+  for (const r of rows) map[r.trainerId] = (r.progress as any) ?? null;
+  return map;
+}
+
 export async function upsertTrainerProgress(userId: string, trainerId: string, progress: AnyProgress): Promise<AnyProgress> {
   const row = await prisma.trainerProgress.upsert({
     where: { userId_trainerId: { userId, trainerId } },

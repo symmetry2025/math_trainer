@@ -71,6 +71,17 @@ export const TrainerProgressResponseDtoSchema = z.object({
 });
 export type TrainerProgressResponseDto = z.infer<typeof TrainerProgressResponseDtoSchema>;
 
+export const TrainerProgressBatchRequestDtoSchema = z.object({
+  trainerIds: z.array(TrainerIdSchema).max(200),
+});
+export type TrainerProgressBatchRequestDto = z.infer<typeof TrainerProgressBatchRequestDtoSchema>;
+
+export const TrainerProgressBatchResponseDtoSchema = z.object({
+  trainerIds: z.array(TrainerIdSchema),
+  progressByTrainerId: z.record(z.unknown().nullable()),
+});
+export type TrainerProgressBatchResponseDto = z.infer<typeof TrainerProgressBatchResponseDtoSchema>;
+
 /**
  * Response of POST /api/progress/record
  * - `progress`: updated per-trainer unlock/stars state

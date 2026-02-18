@@ -13,7 +13,7 @@ export interface MentalMathRaceConfig {
   3: number;
 }
 
-export type ProblemType = 'addition' | 'subtraction';
+export type ProblemType = 'addition' | 'subtraction' | 'multiplication' | 'division';
 
 export interface MentalMathTrainerConfig {
   id: string;
@@ -370,6 +370,36 @@ const generators = {
     const a = randInt(2, 50);
     const b = randInt(1, a - 1);
     return { a, b, answer: a - b };
+  },
+  subtractionWithin100: () => {
+    const a = randInt(11, 100);
+    const b = randInt(1, a - 1);
+    return { a, b, answer: a - b };
+  },
+  subtractionWithin1000: () => {
+    const a = randInt(101, 1000);
+    const b = randInt(1, a - 1);
+    return { a, b, answer: a - b };
+  },
+  multiplicationRoundTensBy1d: () => {
+    // e.g. 30 × 7
+    const a = randInt(1, 9) * 10; // 10..90
+    const b = randInt(2, 9); // 2..9
+    return { a, b, answer: a * b };
+  },
+  multiplication2d_10to20_By1d: () => {
+    // First multiplicand 10..20; second is one-digit (2..9).
+    const a = randInt(10, 20);
+    const b = randInt(2, 9);
+    return { a, b, answer: a * b };
+  },
+  divisionBy: (d: number) => {
+    // Table division: keep integer results (no remainder). Example: 24 ÷ 3 = 8.
+    const divisor = Math.max(2, Math.min(9, Math.floor(Number(d || 2))));
+    const q = randInt(1, 10);
+    const a = divisor * q;
+    const b = divisor;
+    return { a, b, answer: q };
   },
 };
 
@@ -751,6 +781,174 @@ export const MENTAL_MATH_CONFIGS: Record<string, MentalMathTrainerConfig> = {
       race: { problems: 10 },
     },
     npcSpeeds: { 1: 10, 2: 7, 3: 5 },
+  },
+  'sub-100-3': {
+    id: 'sub-100-3',
+    name: 'Вычитание в пределах 100',
+    shortName: 'До 100',
+    problemType: 'subtraction',
+    generator: generators.subtractionWithin100,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 12, 2: 9, 3: 7 },
+  },
+  'sub-1000': {
+    id: 'sub-1000',
+    name: 'Вычитание в пределах 1000',
+    shortName: 'До 1000',
+    problemType: 'subtraction',
+    generator: generators.subtractionWithin1000,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 120 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 16, 2: 12, 3: 9 },
+  },
+  'mul-round-1d': {
+    id: 'mul-round-1d',
+    name: 'Круглое × однозначное',
+    shortName: 'Круглое×1з',
+    problemType: 'multiplication',
+    generator: generators.multiplicationRoundTensBy1d,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 75 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 11, 2: 8, 3: 6 },
+  },
+  'mul-2d-1d-max20': {
+    id: 'mul-2d-1d-max20',
+    name: 'Двухзначное × однозначное',
+    shortName: '2з×1з (до 20)',
+    problemType: 'multiplication',
+    generator: generators.multiplication2d_10to20_By1d,
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 13, 2: 10, 3: 8 },
+  },
+  'div-2': {
+    id: 'div-2',
+    name: 'Деление на 2',
+    shortName: '÷2',
+    problemType: 'division',
+    generator: () => generators.divisionBy(2),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 75 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 11, 2: 8, 3: 6 },
+  },
+  'div-3': {
+    id: 'div-3',
+    name: 'Деление на 3',
+    shortName: '÷3',
+    problemType: 'division',
+    generator: () => generators.divisionBy(3),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 75 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 12, 2: 9, 3: 7 },
+  },
+  'div-4': {
+    id: 'div-4',
+    name: 'Деление на 4',
+    shortName: '÷4',
+    problemType: 'division',
+    generator: () => generators.divisionBy(4),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 13, 2: 10, 3: 8 },
+  },
+  'div-5': {
+    id: 'div-5',
+    name: 'Деление на 5',
+    shortName: '÷5',
+    problemType: 'division',
+    generator: () => generators.divisionBy(5),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 13, 2: 10, 3: 8 },
+  },
+  'div-6': {
+    id: 'div-6',
+    name: 'Деление на 6',
+    shortName: '÷6',
+    problemType: 'division',
+    generator: () => generators.divisionBy(6),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 14, 2: 11, 3: 9 },
+  },
+  'div-7': {
+    id: 'div-7',
+    name: 'Деление на 7',
+    shortName: '÷7',
+    problemType: 'division',
+    generator: () => generators.divisionBy(7),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 15, 2: 12, 3: 10 },
+  },
+  'div-8': {
+    id: 'div-8',
+    name: 'Деление на 8',
+    shortName: '÷8',
+    problemType: 'division',
+    generator: () => generators.divisionBy(8),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 15, 2: 12, 3: 10 },
+  },
+  'div-9': {
+    id: 'div-9',
+    name: 'Деление на 9',
+    shortName: '÷9',
+    problemType: 'division',
+    generator: () => generators.divisionBy(9),
+    levels: {
+      'accuracy-choice': { problems: 10 },
+      'accuracy-input': { problems: 10 },
+      speed: { problems: 10, timeLimit: 90 },
+      race: { problems: 10 },
+    },
+    npcSpeeds: { 1: 16, 2: 13, 3: 11 },
   },
 };
 

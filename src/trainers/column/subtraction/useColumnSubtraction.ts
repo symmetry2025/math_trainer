@@ -2,7 +2,77 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { ColumnSubtractionState, SubtractionInputStep, SubtractionProblem } from './types';
 
-export const generateSubtractionProblem = (difficulty: 'easy' | 'medium' | 'hard'): SubtractionProblem => {
+export type ColumnSubtractionVariant =
+  | '2d-1d-no-borrow'
+  | '2d-2d-no-borrow'
+  | '2d-1d-borrow'
+  | '2d-2d-borrow'
+  | '3d-2d'
+  | '3d-3d';
+
+function randInt(min: number, maxInclusive: number): number {
+  const a = Math.ceil(min);
+  const b = Math.floor(maxInclusive);
+  return Math.floor(Math.random() * (b - a + 1)) + a;
+}
+
+function generateVariantProblem(variant: ColumnSubtractionVariant): SubtractionProblem {
+  if (variant === '2d-1d-no-borrow') {
+    const aT = randInt(1, 9);
+    const aU = randInt(1, 9); // must allow 1..aU
+    const b = randInt(1, aU);
+    return { minuend: aT * 10 + aU, subtrahend: b };
+  }
+  if (variant === '2d-1d-borrow') {
+    const aT = randInt(1, 9);
+    const aU = randInt(0, 8); // must allow aU+1..9
+    const b = randInt(aU + 1, 9);
+    return { minuend: aT * 10 + aU, subtrahend: b };
+  }
+  if (variant === '2d-2d-no-borrow') {
+    const aT = randInt(1, 9);
+    const aU = randInt(0, 9);
+    // ensure b < a and no borrow in ones (bU <= aU)
+    const bTMax = aU === 0 ? Math.max(1, aT - 1) : aT;
+    const bT = randInt(1, bTMax);
+    const bU =
+      bT === aT
+        ? randInt(0, Math.max(0, aU - 1)) // must be strictly smaller overall
+        : randInt(0, aU);
+    return { minuend: aT * 10 + aU, subtrahend: bT * 10 + bU };
+  }
+  if (variant === '3d-2d') {
+    for (let i = 0; i < 400; i++) {
+      const minuend = randInt(100, 999);
+      const subtrahend = randInt(10, 99);
+      if (subtrahend >= minuend) continue;
+      return { minuend, subtrahend };
+    }
+    return { minuend: 742, subtrahend: 53 };
+  }
+  if (variant === '3d-3d') {
+    for (let i = 0; i < 600; i++) {
+      const minuend = randInt(200, 999);
+      const subtrahend = randInt(100, minuend - 1);
+      if (subtrahend >= minuend) continue;
+      return { minuend, subtrahend };
+    }
+    return { minuend: 864, subtrahend: 327 };
+  }
+  // 2d-2d-borrow
+  const aT = randInt(2, 9); // must allow bT < aT (and bT >= 1)
+  const aU = randInt(0, 8); // must allow aU+1..9
+  const bT = randInt(1, aT - 1);
+  const bU = randInt(aU + 1, 9);
+  return { minuend: aT * 10 + aU, subtrahend: bT * 10 + bU };
+}
+
+export const generateSubtractionProblem = (
+  difficulty: 'easy' | 'medium' | 'hard',
+  variant?: ColumnSubtractionVariant,
+): SubtractionProblem => {
+  if (variant) return generateVariantProblem(variant);
+
   let minuend: number, subtrahend: number;
 
   switch (difficulty) {
@@ -69,9 +139,9 @@ const calculateSubtractionSteps = (problem: SubtractionProblem): { steps: Subtra
   return { steps };
 };
 
-export const useColumnSubtraction = (difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+export const useColumnSubtraction = (difficulty: 'easy' | 'medium' | 'hard' = 'medium', variant?: ColumnSubtractionVariant) => {
   const [state, setState] = useState<ColumnSubtractionState>(() => {
-    const problem = generateSubtractionProblem(difficulty);
+    const problem = generateSubtractionProblem(difficulty, variant);
     const { steps } = calculateSubtractionSteps(problem);
     return {
       problem,
@@ -116,7 +186,7 @@ export const useColumnSubtraction = (difficulty: 'easy' | 'medium' | 'hard' = 'm
 
   const reset = useCallback(
     (newDifficulty?: 'easy' | 'medium' | 'hard', problemOverride?: SubtractionProblem) => {
-      const problem = problemOverride ?? generateSubtractionProblem(newDifficulty || difficulty);
+      const problem = problemOverride ?? generateSubtractionProblem(newDifficulty || difficulty, variant);
       const { steps } = calculateSubtractionSteps(problem);
       setState({
         problem,
@@ -128,7 +198,7 @@ export const useColumnSubtraction = (difficulty: 'easy' | 'medium' | 'hard' = 'm
         mistakesCount: 0,
       });
     },
-    [difficulty],
+    [difficulty, variant],
   );
 
   return { state, currentStep, handleInput, reset };

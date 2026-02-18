@@ -4,7 +4,7 @@ export type SumTableTrainerConfig = {
   id: string;
   name: string;
   kind: SumTableKind;
-  /** how many columns in the table */
+  /** how many columns in the table (for substitute-letter: how many mini-tables) */
   columns: number;
   /** sum range */
   sumMin: number;
@@ -14,6 +14,15 @@ export type SumTableTrainerConfig = {
   knownMax: number;
   /** letter to show for substitute-letter kind */
   letter?: string;
+  /**
+   * substitute-letter mode (mini-table):
+   * - choose a concrete value for the letter in [letterValueMin..letterValueMax]
+   * - choose 2 addends in [addMin..addMax]
+   */
+  letterValueMin?: number;
+  letterValueMax?: number;
+  addMin?: number;
+  addMax?: number;
 };
 
 export const SUM_TABLE_CONFIGS: Record<string, SumTableTrainerConfig> = {
@@ -41,12 +50,17 @@ export const SUM_TABLE_CONFIGS: Record<string, SumTableTrainerConfig> = {
     id: 'add-sumtable-letter',
     name: 'Заполни таблицу — подставь вместо буквы',
     kind: 'substitute-letter',
-    columns: 7,
+    columns: 5, // 5 mini-tables → 10 примеров (2 ответа в каждой)
+    // legacy fields are kept for compatibility; substitute-letter uses the extended fields below
     sumMin: 12,
     sumMax: 18,
     knownMin: 2,
     knownMax: 9,
     letter: 'a',
+    letterValueMin: 2,
+    letterValueMax: 20,
+    addMin: 10,
+    addMax: 90,
   },
 };
 

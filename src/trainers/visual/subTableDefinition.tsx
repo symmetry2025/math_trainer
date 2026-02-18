@@ -6,26 +6,21 @@ import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinit
 import { emitProgressUpdated } from '../../lib/crystals';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { arithmeticDbTrainerId, arithmeticStorageKey } from '../../lib/trainerIds';
-import { getSumTableConfig, type SumTableKind } from '../../data/sumTableConfig';
+import { getSubTableConfig, type SubTableKind } from '../../data/subTableConfig';
 import { defaultVisualMentalProgress, normalizeVisualMentalProgress, type VisualMentalProgress } from './visualProgress';
-import { SumTableSession } from './SumTableSession';
+import { SubTableSession } from './SubTableSession';
 
-export type SumTableSessionConfig = SessionConfigBase & {
+export type SubTableSessionConfig = SessionConfigBase & {
   level: 'accuracy-choice' | 'accuracy-input' | 'speed' | 'race';
   starLevel?: 1 | 2 | 3;
   timeLimitSec?: number;
   npcSecondsPerProblem?: number;
-  kind: SumTableKind;
+  kind: SubTableKind;
   columns: number;
-  sumMin: number;
-  sumMax: number;
+  diffMin: number;
+  diffMax: number;
   knownMin: number;
   knownMax: number;
-  letter?: string;
-  letterValueMin?: number;
-  letterValueMax?: number;
-  addMin?: number;
-  addMax?: number;
 };
 
 function loadLocalProgress(trainerId: string): VisualMentalProgress {
@@ -47,32 +42,22 @@ function saveLocalProgress(trainerId: string, p: VisualMentalProgress) {
 }
 
 function makePresets(cfg: {
-  kind: SumTableKind;
+  kind: SubTableKind;
   columns: number;
-  sumMin: number;
-  sumMax: number;
+  diffMin: number;
+  diffMax: number;
   knownMin: number;
   knownMax: number;
-  letter?: string;
-  letterValueMin?: number;
-  letterValueMax?: number;
-  addMin?: number;
-  addMax?: number;
-}): Array<PresetDefinition<SumTableSessionConfig, VisualMentalProgress>> {
+}): Array<PresetDefinition<SubTableSessionConfig, VisualMentalProgress>> {
   const base = (level: 'accuracy-choice' | 'accuracy-input') => ({
     presetId: level,
     level,
     kind: cfg.kind,
     columns: cfg.columns,
-    sumMin: cfg.sumMin,
-    sumMax: cfg.sumMax,
+    diffMin: cfg.diffMin,
+    diffMax: cfg.diffMax,
     knownMin: cfg.knownMin,
     knownMax: cfg.knownMax,
-    letter: cfg.letter,
-    letterValueMin: cfg.letterValueMin,
-    letterValueMax: cfg.letterValueMax,
-    addMin: cfg.addMin,
-    addMax: cfg.addMax,
   });
 
   const label = `Заполни ${Math.max(1, cfg.columns)} колонок`;
@@ -104,15 +89,10 @@ function makePresets(cfg: {
         timeLimitSec: speedLimitSec,
         kind: cfg.kind,
         columns: cfg.columns,
-        sumMin: cfg.sumMin,
-        sumMax: cfg.sumMax,
+        diffMin: cfg.diffMin,
+        diffMax: cfg.diffMax,
         knownMin: cfg.knownMin,
         knownMax: cfg.knownMax,
-        letter: cfg.letter,
-        letterValueMin: cfg.letterValueMin,
-        letterValueMax: cfg.letterValueMax,
-        addMin: cfg.addMin,
-        addMax: cfg.addMax,
       },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
     },
@@ -127,15 +107,10 @@ function makePresets(cfg: {
         npcSecondsPerProblem: npcSeconds[1],
         kind: cfg.kind,
         columns: cfg.columns,
-        sumMin: cfg.sumMin,
-        sumMax: cfg.sumMax,
+        diffMin: cfg.diffMin,
+        diffMax: cfg.diffMax,
         knownMin: cfg.knownMin,
         knownMax: cfg.knownMax,
-        letter: cfg.letter,
-        letterValueMin: cfg.letterValueMin,
-        letterValueMax: cfg.letterValueMax,
-        addMin: cfg.addMin,
-        addMax: cfg.addMax,
       },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
@@ -150,15 +125,10 @@ function makePresets(cfg: {
         npcSecondsPerProblem: npcSeconds[2],
         kind: cfg.kind,
         columns: cfg.columns,
-        sumMin: cfg.sumMin,
-        sumMax: cfg.sumMax,
+        diffMin: cfg.diffMin,
+        diffMax: cfg.diffMax,
         knownMin: cfg.knownMin,
         knownMax: cfg.knownMax,
-        letter: cfg.letter,
-        letterValueMin: cfg.letterValueMin,
-        letterValueMax: cfg.letterValueMax,
-        addMin: cfg.addMin,
-        addMax: cfg.addMax,
       },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
@@ -173,36 +143,26 @@ function makePresets(cfg: {
         npcSecondsPerProblem: npcSeconds[3],
         kind: cfg.kind,
         columns: cfg.columns,
-        sumMin: cfg.sumMin,
-        sumMax: cfg.sumMax,
+        diffMin: cfg.diffMin,
+        diffMax: cfg.diffMax,
         knownMin: cfg.knownMin,
         knownMax: cfg.knownMax,
-        letter: cfg.letter,
-        letterValueMin: cfg.letterValueMin,
-        letterValueMax: cfg.letterValueMax,
-        addMin: cfg.addMin,
-        addMax: cfg.addMax,
       },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
   ];
 }
 
-export function makeSumTableDefinition(args: { trainerId: string; backHref: string }): TrainerDefinition<VisualMentalProgress, SumTableSessionConfig> {
-  const cfg = getSumTableConfig(args.trainerId);
+export function makeSubTableDefinition(args: { trainerId: string; backHref: string }): TrainerDefinition<VisualMentalProgress, SubTableSessionConfig> {
+  const cfg = getSubTableConfig(args.trainerId);
   const dbTrainerId = arithmeticDbTrainerId(cfg.id);
   const presets = makePresets({
     kind: cfg.kind,
     columns: cfg.columns,
-    sumMin: cfg.sumMin,
-    sumMax: cfg.sumMax,
+    diffMin: cfg.diffMin,
+    diffMax: cfg.diffMax,
     knownMin: cfg.knownMin,
     knownMax: cfg.knownMax,
-    letter: cfg.letter,
-    letterValueMin: cfg.letterValueMin,
-    letterValueMax: cfg.letterValueMax,
-    addMin: cfg.addMin,
-    addMax: cfg.addMax,
   });
 
   return {
@@ -243,19 +203,14 @@ export function makeSumTableDefinition(args: { trainerId: string; backHref: stri
 
     renderSession: ({ config, onFinish, setMetrics }) => {
       return (
-        <SumTableSession
+        <SubTableSession
           attemptId={config.attemptId}
           kind={config.kind}
           columns={config.columns}
-          sumMin={config.sumMin}
-          sumMax={config.sumMax}
+          diffMin={config.diffMin}
+          diffMax={config.diffMax}
           knownMin={config.knownMin}
           knownMax={config.knownMax}
-          letter={config.letter}
-          letterValueMin={config.letterValueMin}
-          letterValueMax={config.letterValueMax}
-          addMin={config.addMin}
-          addMax={config.addMax}
           level={config.level}
           timeLimitSec={config.timeLimitSec}
           starLevel={config.starLevel}
@@ -312,16 +267,18 @@ export function makeSumTableDefinition(args: { trainerId: string; backHref: stri
             mistakes,
             time,
             won,
-            starLevel,
+            opponent: isRace
+              ? {
+                  id: `npc:${starLevel}`,
+                  name: 'Соперник',
+                  title: 'NPC',
+                }
+              : null,
           }),
         });
-        const json: any = await res.json().catch(() => null);
-        const parsed = TrainerRecordProgressResponseDtoSchema.safeParse(json);
-        if (parsed.success) newlyUnlockedAchievements = parsed.data.newlyUnlockedAchievements ?? [];
-        const p = (parsed.success ? parsed.data.progress : json?.progress) as any;
-        if (p) {
-          saveLocalProgress(cfg.id, normalizeVisualMentalProgress(p));
-          emitProgressUpdated();
+        if (res.ok) {
+          const body = TrainerRecordProgressResponseDtoSchema.safeParse(await res.json());
+          if (body.success) newlyUnlockedAchievements = body.data.newlyUnlockedAchievements ?? [];
         }
       } catch {
         // ignore

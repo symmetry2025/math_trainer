@@ -93,6 +93,56 @@ const TRAINER_CONFIGS: Record<string, TrainerConfig> = {
     race: { problems: 10 },
     npcSpeeds: { 1: 12, 2: 9, 3: 6 },
   },
+  // Grade-2 column subtraction variants (separate exercises with their own progress)
+  'column-sub-2d-1d-no-borrow': {
+    id: 'column-sub-2d-1d-no-borrow',
+    name: 'Двухзначное и однозначное — без заёма',
+    accuracy: { problems: 10 },
+    speed: { problems: 5, timeLimit: 60 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 12, 2: 9, 3: 6 },
+  },
+  'column-sub-2d-2d-no-borrow': {
+    id: 'column-sub-2d-2d-no-borrow',
+    name: 'Двухзначное и двухзначное — без заёма',
+    accuracy: { problems: 10 },
+    speed: { problems: 5, timeLimit: 60 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 12, 2: 9, 3: 6 },
+  },
+  'column-sub-2d-1d-borrow': {
+    id: 'column-sub-2d-1d-borrow',
+    name: 'Двухзначное и однозначное — с заёмом',
+    accuracy: { problems: 10 },
+    speed: { problems: 5, timeLimit: 60 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 12, 2: 9, 3: 6 },
+  },
+  'column-sub-2d-2d-borrow': {
+    id: 'column-sub-2d-2d-borrow',
+    name: 'Двухзначное и двухзначное — с заёмом',
+    accuracy: { problems: 10 },
+    speed: { problems: 5, timeLimit: 60 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 12, 2: 9, 3: 6 },
+  },
+  // Grade-3 column subtraction variants (within 1000)
+  'column-sub-3d-2d': {
+    id: 'column-sub-3d-2d',
+    name: 'Трёхзначное и двузначное — до 1000',
+    accuracy: { problems: 10 },
+    speed: { problems: 6, timeLimit: 90 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 16, 2: 12, 3: 9 },
+  },
+  'column-sub-3d-3d': {
+    id: 'column-sub-3d-3d',
+    name: 'Разность трёхзначных — до 1000',
+    accuracy: { problems: 10 },
+    speed: { problems: 6, timeLimit: 90 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 18, 2: 14, 3: 10 },
+  },
   'column-multiplication': {
     id: 'column-multiplication',
     name: 'Умножение в столбик',
@@ -100,6 +150,15 @@ const TRAINER_CONFIGS: Record<string, TrainerConfig> = {
     speed: { problems: 4, timeLimit: 90 },
     race: { problems: 8 },
     npcSpeeds: { 1: 18, 2: 14, 3: 10 },
+  },
+  // Grade-2 column multiplication variant (2-digit × 1-digit)
+  'column-mul-2d-1d': {
+    id: 'column-mul-2d-1d',
+    name: 'Двухзначное × однозначное — в столбик',
+    accuracy: { problems: 10 },
+    speed: { problems: 6, timeLimit: 90 },
+    race: { problems: 10 },
+    npcSpeeds: { 1: 14, 2: 11, 3: 8 },
   },
   'column-division': {
     id: 'column-division',

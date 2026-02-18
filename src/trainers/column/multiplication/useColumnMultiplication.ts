@@ -2,7 +2,14 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { ColumnMultiplicationState, ColumnProblem, InputStep, PartialProduct } from './types';
 
-export const generateProblem = (difficulty: 'easy' | 'medium' | 'hard'): ColumnProblem => {
+export type ColumnMultiplicationVariant = '2d-1d';
+
+export const generateProblem = (difficulty: 'easy' | 'medium' | 'hard', variant?: ColumnMultiplicationVariant): ColumnProblem => {
+  if (variant === '2d-1d') {
+    const multiplicand = Math.floor(Math.random() * 90) + 10; // 10-99
+    const multiplier = Math.floor(Math.random() * 8) + 2; // 2-9
+    return { multiplicand, multiplier };
+  }
   let multiplicand: number, multiplier: number;
 
   switch (difficulty) {
@@ -141,9 +148,9 @@ const calculateSteps = (problem: ColumnProblem): { steps: InputStep[]; partialPr
   return { steps, partialProducts };
 };
 
-export const useColumnMultiplication = (difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+export const useColumnMultiplication = (difficulty: 'easy' | 'medium' | 'hard' = 'medium', variant?: ColumnMultiplicationVariant) => {
   const [state, setState] = useState<ColumnMultiplicationState>(() => {
-    const problem = generateProblem(difficulty);
+    const problem = generateProblem(difficulty, variant);
     const { steps, partialProducts } = calculateSteps(problem);
     return {
       problem,
@@ -214,7 +221,7 @@ export const useColumnMultiplication = (difficulty: 'easy' | 'medium' | 'hard' =
 
   const reset = useCallback(
     (newDifficulty?: 'easy' | 'medium' | 'hard', problemOverride?: ColumnProblem) => {
-      const problem = problemOverride ?? generateProblem(newDifficulty || difficulty);
+      const problem = problemOverride ?? generateProblem(newDifficulty || difficulty, variant);
       const { steps, partialProducts } = calculateSteps(problem);
       setState({
         problem,
@@ -229,7 +236,7 @@ export const useColumnMultiplication = (difficulty: 'easy' | 'medium' | 'hard' =
         mistakesCount: 0,
       });
     },
-    [difficulty],
+    [difficulty, variant],
   );
 
   return { state, currentStep, handleInput, reset };

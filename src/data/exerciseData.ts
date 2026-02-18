@@ -81,8 +81,8 @@ export const additionSubtractionData: GradeSection[] = [
         ],
       },
       {
-        id: 'subtraction-2',
-        title: 'Вычитание',
+        id: 'subtraction-2-20',
+        title: 'Вычитание в пределах 20',
         exercises: [
           { id: 'sub-10', title: 'Вычитание до 10', progress: 0, total: 100, unlocked: true },
           {
@@ -97,14 +97,6 @@ export const additionSubtractionData: GradeSection[] = [
             id: 'sub-missing-subtrahend-10',
             title: 'Найти вычитаемое',
             description: 'в пределах 10',
-            progress: 0,
-            total: 100,
-            unlocked: true,
-          },
-          {
-            id: 'sub-to-round-ten',
-            title: 'Вычитание до круглого',
-            description: 'в пределах 100',
             progress: 0,
             total: 100,
             unlocked: true,
@@ -142,6 +134,12 @@ export const additionSubtractionData: GradeSection[] = [
             total: 100,
             unlocked: true,
           },
+        ],
+      },
+      {
+        id: 'subtraction-2-50',
+        title: 'Вычитание в пределах 50',
+        exercises: [
           {
             id: 'sub-2d-2d-round',
             title: 'Двухзначные круглые',
@@ -181,6 +179,20 @@ export const additionSubtractionData: GradeSection[] = [
             total: 100,
             unlocked: true,
           },
+        ],
+      },
+      {
+        id: 'subtraction-2-100',
+        title: 'Вычитание в пределах 100',
+        exercises: [
+          {
+            id: 'sub-to-round-ten',
+            title: 'Вычитание до круглого',
+            description: 'в пределах 100',
+            progress: 0,
+            total: 100,
+            unlocked: true,
+          },
           {
             id: 'sub-missing-minuend-100',
             title: 'Найти уменьшаемое',
@@ -197,6 +209,16 @@ export const additionSubtractionData: GradeSection[] = [
             total: 100,
             unlocked: true,
           },
+        ],
+      },
+      {
+        id: 'subtraction-2-column',
+        title: 'Вычитание в столбик',
+        exercises: [
+          { id: 'column-sub-2d-1d-no-borrow', title: 'Двухзначное и однозначное', description: 'без заёма', progress: 0, total: 100, unlocked: true },
+          { id: 'column-sub-2d-2d-no-borrow', title: 'Двухзначное и двухзначное', description: 'без заёма', progress: 0, total: 100, unlocked: true },
+          { id: 'column-sub-2d-1d-borrow', title: 'Двухзначное и однозначное', description: 'с заёмом', progress: 0, total: 100, unlocked: true },
+          { id: 'column-sub-2d-2d-borrow', title: 'Двухзначное и двухзначное', description: 'с заёмом', progress: 0, total: 100, unlocked: true },
         ],
       },
     ],
@@ -237,21 +259,32 @@ export const additionSubtractionData: GradeSection[] = [
         ],
       },
       {
-        id: 'subtraction-3',
-        title: 'Вычитание',
+        id: 'subtraction-3-100',
+        title: 'Вычитание в пределах 100',
         exercises: [
-          { id: 'column-subtraction', title: 'Вычитание в столбик', progress: 0, total: 100, unlocked: true },
           { id: 'sub-100-3', title: 'Вычитание в пределах 100', progress: 0, total: 100, unlocked: true },
-          { id: 'sub-1000', title: 'Вычитание в пределах 1000', progress: 0, total: 100, unlocked: true },
-          { id: 'sub-5000', title: 'Вычитание в пределах 5000', progress: 0, total: 100, unlocked: false },
         ],
       },
       {
-        id: 'mixed-3',
-        title: 'Смешанные примеры',
+        id: 'subtraction-3-1000',
+        title: 'Вычитание в пределах 1000',
+        exercises: [{ id: 'sub-1000', title: 'Вычитание в пределах 1000', progress: 0, total: 100, unlocked: true }],
+      },
+      {
+        id: 'subtraction-3-column-1000',
+        title: 'В столбик в пределах 1000',
         exercises: [
-          { id: 'mix-100', title: 'Сложение и вычитание до 100', progress: 0, total: 100, unlocked: true },
-          { id: 'mix-1000', title: 'Сложение и вычитание до 1000', progress: 0, total: 100, unlocked: false },
+          { id: 'column-sub-3d-2d', title: 'Трёхзначное и двузначное', progress: 0, total: 100, unlocked: true },
+          { id: 'column-sub-3d-3d', title: 'Разность трёхзначных', progress: 0, total: 100, unlocked: true },
+        ],
+      },
+      {
+        id: 'subtraction-3-sumtable',
+        title: 'Заполни таблицу',
+        exercises: [
+          { id: 'sub-sumtable-find-difference', title: 'Найди разность', progress: 0, total: 100, unlocked: true },
+          { id: 'sub-sumtable-find-subtrahend', title: 'Найди вычитаемое', progress: 0, total: 100, unlocked: true },
+          { id: 'sub-sumtable-find-minuend', title: 'Найди уменьшаемое', progress: 0, total: 100, unlocked: true },
         ],
       },
     ],
@@ -285,7 +318,7 @@ function isAdditionExerciseId(exerciseId: string) {
 }
 
 function isSubtractionExerciseId(exerciseId: string) {
-  return exerciseId === 'column-subtraction' || exerciseId.startsWith('sub-');
+  return exerciseId === 'column-subtraction' || exerciseId.startsWith('column-sub-') || exerciseId.startsWith('sub-');
 }
 
 function filterAdditionSubtractionData(predicate: (exerciseId: string) => boolean): GradeSection[] {
@@ -312,14 +345,32 @@ export const multiplicationData: GradeSection[] = [
     grade: 2,
     sections: [
       {
-        id: 'mult-basics',
-        title: 'Основы умножения',
+        id: 'mult-table-2',
+        title: 'Таблица умножения',
         exercises: [
-          { id: 'mult-concept', title: 'Что такое умножение', progress: 0, total: 20, unlocked: true },
           { id: 'mul-table-2', title: 'Умножение на 2', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-3', title: 'Умножение на 3', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-table-4', title: 'Умножение на 4', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-5', title: 'Умножение на 5', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-table-6', title: 'Умножение на 6', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-table-7', title: 'Умножение на 7', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-table-8', title: 'Умножение на 8', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-table-9', title: 'Умножение на 9', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-table-full', title: 'Вся таблица умножения', description: 'Тренировка всей таблицы', progress: 0, total: 100, unlocked: true },
         ],
+      },
+      {
+        id: 'mult-mental-2',
+        title: 'Устное умножение',
+        exercises: [
+          { id: 'mul-round-1d', title: 'Круглое на однозначное', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-2d-1d-max20', title: 'Двухзначное и однозначное', description: 'множитель до 20', progress: 0, total: 100, unlocked: true },
+        ],
+      },
+      {
+        id: 'mult-column-2',
+        title: 'Умножение в столбик',
+        exercises: [{ id: 'column-mul-2d-1d', title: 'Двухзначное на однозначное', progress: 0, total: 100, unlocked: true }],
       },
     ],
   },
@@ -376,12 +427,13 @@ export const divisionData: GradeSection[] = [
     grade: 2,
     sections: [
       {
-        id: 'div-basics',
-        title: 'Основы деления',
+        id: 'div-table-2',
+        title: 'Таблица деления',
         exercises: [
-          { id: 'div-concept', title: 'Что такое деление', progress: 0, total: 20, unlocked: true },
           { id: 'div-2', title: 'Деление на 2', progress: 0, total: 100, unlocked: true },
           { id: 'div-3', title: 'Деление на 3', progress: 0, total: 100, unlocked: true },
+          { id: 'div-4', title: 'Деление на 4', progress: 0, total: 100, unlocked: true },
+          { id: 'div-5', title: 'Деление на 5', progress: 0, total: 100, unlocked: true },
         ],
       },
     ],
@@ -393,8 +445,6 @@ export const divisionData: GradeSection[] = [
         id: 'div-table',
         title: 'Таблица деления',
         exercises: [
-          { id: 'div-4', title: 'Деление на 4', progress: 0, total: 100, unlocked: true },
-          { id: 'div-5', title: 'Деление на 5', progress: 0, total: 100, unlocked: true },
           { id: 'div-6', title: 'Деление на 6', progress: 0, total: 100, unlocked: true },
           { id: 'div-7', title: 'Деление на 7', progress: 0, total: 100, unlocked: true },
           { id: 'div-8', title: 'Деление на 8', progress: 0, total: 100, unlocked: true },
@@ -402,11 +452,11 @@ export const divisionData: GradeSection[] = [
         ],
       },
       {
-        id: 'div-remainder',
-        title: 'Деление с остатком',
+        id: 'div-column-3',
+        title: 'Деление в столбик',
         exercises: [
-          { id: 'div-rem-simple', title: 'Простое деление с остатком', progress: 0, total: 100, unlocked: true },
-          { id: 'div-rem-100', title: 'Деление с остатком до 100', progress: 0, total: 100, unlocked: false },
+          // план: двузначное ÷ однозначное (без остатка)
+          { id: 'column-division', title: 'Двузначное ÷ однозначное', description: 'без остатка', progress: 0, total: 100, unlocked: true },
         ],
       },
     ],
@@ -415,12 +465,20 @@ export const divisionData: GradeSection[] = [
     grade: 4,
     sections: [
       {
+        id: 'div-remainder',
+        title: 'Деление с остатком',
+        exercises: [
+          { id: 'div-rem-simple', title: 'Простое деление с остатком', progress: 0, total: 100, unlocked: true },
+          { id: 'div-rem-100', title: 'Деление с остатком до 100', progress: 0, total: 100, unlocked: false },
+        ],
+      },
+      {
         id: 'div-advanced',
         title: 'Деление многозначных',
         exercises: [
           { id: 'div-10-100', title: 'Деление на 10, 100', progress: 0, total: 100, unlocked: true },
           { id: 'div-2digit', title: 'Деление на двузначное', progress: 0, total: 100, unlocked: false },
-          { id: 'column-division', title: 'Деление в столбик', progress: 0, total: 100, unlocked: true },
+          // в 4 классе будет другой вариант "в столбик" (многозначные); здесь пока оставляем пусто
         ],
       },
     ],

@@ -160,7 +160,14 @@ export default function MentalMathSession(props: {
   }, [engine.index, engine.selectedAnswer, engine.status]);
 
   const timeRemaining = engine.remainingSec ?? timeLimitSec;
-  const operatorSymbol = config.problemType === 'addition' ? '+' : '−';
+  const operatorSymbol =
+    config.problemType === 'addition'
+      ? '+'
+      : config.problemType === 'subtraction'
+        ? '−'
+        : config.problemType === 'multiplication'
+          ? '×'
+          : '÷';
 
   // Live session metrics for canonical session frame
   useEffect(() => {

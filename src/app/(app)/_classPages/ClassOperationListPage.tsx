@@ -12,7 +12,10 @@ import { MENTAL_MATH_CONFIGS } from '../../../data/mentalMathConfig';
 import { NUMBER_COMPOSITION_CONFIGS } from '../../../data/numberCompositionConfig';
 import { SUM_TABLE_CONFIGS } from '../../../data/sumTableConfig';
 import { TABLE_FILL_CONFIGS } from '../../../data/tableFillConfig';
+import { SUB_TABLE_CONFIGS } from '../../../data/subTableConfig';
 import { restoreListReturn, saveListReturn } from '../../../lib/listScrollRestore';
+import { emitProgressUpdated } from '../../../lib/crystals';
+import { exerciseIdToTrainerDbId, hydrateProgressBatchFromDb, wasHydratedRecently } from '../../../lib/progressHydration';
 import type { Grade, Operation } from './types';
 
 const opUi: Record<
@@ -71,6 +74,27 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
 
   const exerciseIds = useMemo(() => gradeData?.sections.flatMap((s) => s.exercises.map((e) => e.id)) ?? [], [gradeData]);
 
+  useEffect(() => {
+    // Hydrate progress for wired exercises once for the whole list page to avoid N+1 requests.
+    const trainerDbIds = Array.from(
+      new Set(
+        (exerciseIds || [])
+          .map((id) => exerciseIdToTrainerDbId(id))
+          .filter(Boolean) as string[],
+      ),
+    );
+    const toHydrate = trainerDbIds.filter((id) => !wasHydratedRecently(id, 60_000));
+    if (!toHydrate.length) return;
+    let cancelled = false;
+    (async () => {
+      await hydrateProgressBatchFromDb(toHydrate);
+      if (!cancelled) emitProgressUpdated();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [exerciseIds]);
+
   const handleExerciseClick = (exerciseId: string) => {
     saveListReturn(props.basePath, exerciseId);
 
@@ -98,7 +122,15 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
         router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
         return;
       }
-      if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId) || Object.prototype.hasOwnProperty.call(ARITHMETIC_EQUATION_CONFIGS, exerciseId)) {
+      if (exerciseId.startsWith('column-sub-')) {
+        router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
+        return;
+      }
+      if (
+        Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId) ||
+        Object.prototype.hasOwnProperty.call(ARITHMETIC_EQUATION_CONFIGS, exerciseId) ||
+        Object.prototype.hasOwnProperty.call(SUB_TABLE_CONFIGS, exerciseId)
+      ) {
         router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
         return;
       }
@@ -111,7 +143,15 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
         router.push(`${props.basePath}/column-multiplication`);
         return;
       }
-      if (/^mul-table-(\d+)$/.test(String(exerciseId || ''))) {
+      if (exerciseId.startsWith('column-mul-')) {
+        router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
+        return;
+      }
+      if (/^mul-table-(\d+)$/.test(String(exerciseId || '')) || exerciseId === 'mul-table-full') {
+        router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
         router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
         return;
       }
@@ -122,6 +162,10 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
     // division
     if (exerciseId === 'column-division') {
       router.push(`${props.basePath}/column-division`);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
+      router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
       return;
     }
     console.log('Start exercise (not wired yet):', exerciseId);

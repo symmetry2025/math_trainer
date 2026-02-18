@@ -2,6 +2,8 @@ import { MENTAL_MATH_CONFIGS } from '../data/mentalMathConfig';
 import { ARITHMETIC_EQUATION_CONFIGS } from '../data/arithmeticEquationConfig';
 import { NUMBER_COMPOSITION_CONFIGS } from '../data/numberCompositionConfig';
 import { TABLE_FILL_CONFIGS } from '../data/tableFillConfig';
+import { SUM_TABLE_CONFIGS } from '../data/sumTableConfig';
+import { SUB_TABLE_CONFIGS } from '../data/subTableConfig';
 
 export const PROGRESS_UPDATED_EVENT = 'smmtry:progress-updated';
 
@@ -103,7 +105,9 @@ function normalizeExerciseIdToArithmeticTrainerId(exerciseId: string): string | 
     !Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId) &&
     !Object.prototype.hasOwnProperty.call(ARITHMETIC_EQUATION_CONFIGS, exerciseId) &&
     !Object.prototype.hasOwnProperty.call(NUMBER_COMPOSITION_CONFIGS, exerciseId) &&
-    !Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId)
+    !Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId) &&
+    !Object.prototype.hasOwnProperty.call(SUM_TABLE_CONFIGS, exerciseId) &&
+    !Object.prototype.hasOwnProperty.call(SUB_TABLE_CONFIGS, exerciseId)
   )
     return null;
   return `arithmetic:${exerciseId}`;
@@ -143,7 +147,11 @@ export function getExerciseProgressStatus(exerciseId: string): ExerciseProgressS
     const raw = window.localStorage.getItem(`smmtry.trainer.progress:${arithmeticId}`);
     const p = safeJsonParse<MentalMathProgress>(raw) || {};
     const raceStars = clampStars(p.raceStars);
-    const isVisual = Object.prototype.hasOwnProperty.call(NUMBER_COMPOSITION_CONFIGS, exerciseId) || Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId);
+    const isVisual =
+      Object.prototype.hasOwnProperty.call(NUMBER_COMPOSITION_CONFIGS, exerciseId) ||
+      Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId) ||
+      Object.prototype.hasOwnProperty.call(SUM_TABLE_CONFIGS, exerciseId) ||
+      Object.prototype.hasOwnProperty.call(SUB_TABLE_CONFIGS, exerciseId);
     const preRaceDone = !!p['accuracy-input'] && !!p.speed;
     return { kind: 'mental', preRaceDone, raceStars };
   }
@@ -195,7 +203,9 @@ export function getCrystalsCapForExercise(exerciseId: string): number {
   // Visual arithmetic drills: training(0) + accuracy(10) + speed(10) + race(5/10/15) => max 50
   if (
     Object.prototype.hasOwnProperty.call(NUMBER_COMPOSITION_CONFIGS, exerciseId) ||
-    Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId)
+    Object.prototype.hasOwnProperty.call(TABLE_FILL_CONFIGS, exerciseId) ||
+    Object.prototype.hasOwnProperty.call(SUM_TABLE_CONFIGS, exerciseId) ||
+    Object.prototype.hasOwnProperty.call(SUB_TABLE_CONFIGS, exerciseId)
   ) {
     return 10 + 10 + sumRaceCrystals(3);
   }

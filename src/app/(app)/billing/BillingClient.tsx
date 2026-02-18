@@ -52,11 +52,9 @@ function isCloudPaymentsWidgetOpen(): boolean {
   const hasIframe = !!document.querySelector('iframe[src*="cloudpayments" i]');
   const hasKnownIdsOrClasses = !!document.querySelector(
     [
-      '#cp-widget',
       '[id*="cloudpayments" i]',
       '[class*="cloudpayments" i]',
       '[class*="cp-widget" i]',
-      '[id*="cp-" i]',
     ].join(','),
   );
   return hasIframe || hasKnownIdsOrClasses;

@@ -78,7 +78,8 @@ export type TrainerProgressBatchRequestDto = z.infer<typeof TrainerProgressBatch
 
 export const TrainerProgressBatchResponseDtoSchema = z.object({
   trainerIds: z.array(TrainerIdSchema),
-  progressByTrainerId: z.record(z.unknown().nullable()),
+  // zod v4: record requires explicit key schema
+  progressByTrainerId: z.record(z.string(), z.unknown().nullable()),
 });
 export type TrainerProgressBatchResponseDto = z.infer<typeof TrainerProgressBatchResponseDtoSchema>;
 

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
+import { SubscriptionActivatedModal } from '../../../components/SubscriptionActivatedModal';
+
 type BillingDto = {
   trialEndsAt: string | null;
   billingStatus: 'none' | 'active' | 'past_due' | 'cancelled';
@@ -55,10 +57,20 @@ export function BillingClient(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [showActivated, setShowActivated] = useState(false);
+  const [pendingActivationNotice, setPendingActivationNotice] = useState(false);
 
   const statusLabel = useMemo(() => {
-    if (billing.access.ok && billing.access.reason === 'trial') return 'Пробный период активен';
-    if (billing.billingStatus === 'active') return 'Подписка активна';
+    const now = Date.now();
+    const paidUntilMs = billing.paidUntil ? new Date(billing.paidUntil).getTime() : 0;
+    const trialEndsAtMs = billing.trialEndsAt ? new Date(billing.trialEndsAt).getTime() : 0;
+    const hasPaid = Number.isFinite(paidUntilMs) && paidUntilMs > now;
+    const hasTrial = Number.isFinite(trialEndsAtMs) && trialEndsAtMs > now;
+    if (billing.access.ok && billing.access.reason === 'admin') return 'Администратор';
+    if (billing.billingStatus === 'active' && !billing.cpSubscriptionId && !billing.paidUntil) return 'Бессрочная подписка';
+    if (billing.billingStatus === 'active' && hasPaid && !billing.cpSubscriptionId) return 'Бесплатная подписка';
+    if (hasPaid) return 'Активная подписка';
+    if (hasTrial) return 'Пробный период';
     if (billing.billingStatus === 'past_due') return 'Оплата не прошла (PastDue)';
     if (billing.billingStatus === 'cancelled') return 'Подписка отменена';
     return 'Подписка не активна';
@@ -102,6 +114,7 @@ export function BillingClient(props: {
     const invoiceId = `sub-${props.me.id}-${Date.now()}`;
     const widget = new window.cp.CloudPayments();
     setBusy(true);
+    setPendingActivationNotice(true);
     try {
       widget.pay(
         'charge',
@@ -122,22 +135,31 @@ export function BillingClient(props: {
         async () => {
           setInfo('Платёж принят. Обновляем статус подписки…');
           // Webhooks are async — poll a bit.
+          let last: BillingDto | null = null;
           for (let i = 0; i < 10; i++) {
             await new Promise((r) => setTimeout(r, 1500));
-            const latest = await refresh();
-            if (latest?.billingStatus === 'active') break;
+            last = await refresh();
+            if (last?.billingStatus === 'active') break;
           }
-          setInfo('Готово. Если статус не обновился — подожди минуту и обнови страницу.');
+          if (last?.billingStatus === 'active') {
+            setInfo(null);
+            if (pendingActivationNotice) setShowActivated(true);
+          } else {
+            setInfo('Готово. Если статус не обновился — подожди минуту и обнови страницу.');
+          }
           setBusy(false);
+          setPendingActivationNotice(false);
         },
         async () => {
           setError('Платёж не завершён.');
           setBusy(false);
+          setPendingActivationNotice(false);
         },
       );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Не удалось открыть платежную форму');
       setBusy(false);
+      setPendingActivationNotice(false);
     }
   };
 
@@ -167,15 +189,16 @@ export function BillingClient(props: {
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Подписка</h1>
-          <p className="text-muted-foreground">Доступ к тренажёрам по пробному периоду или подписке</p>
         </div>
 
         {info ? <div className="card-elevated p-4 text-sm text-foreground">{info}</div> : null}
         {error ? <div className="card-elevated p-4 text-sm text-destructive">{error}</div> : null}
 
         <div className="card-elevated p-6 space-y-3">
-          <div className="text-sm text-muted-foreground">Статус</div>
-          <div className="text-lg font-bold">{statusLabel}</div>
+          <div className="text-sm">
+            Статус:{' '}
+            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 font-semibold text-foreground">{statusLabel}</span>
+          </div>
 
           <div className="grid gap-2 text-sm">
             <div>
@@ -216,6 +239,8 @@ export function BillingClient(props: {
           </div>
         )}
       </div>
+
+      <SubscriptionActivatedModal open={showActivated} paidUntil={billing.paidUntil} onClose={() => setShowActivated(false)} />
     </div>
   );
 }

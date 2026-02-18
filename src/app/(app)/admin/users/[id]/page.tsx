@@ -58,6 +58,26 @@ function pickBillingStatus(v: unknown): 'none' | 'active' | 'past_due' | 'cancel
   return 'none';
 }
 
+type BillingPlanKind = 'none' | 'trial' | 'paid' | 'free' | 'lifetime' | 'cancelled';
+
+function derivePlanKind(u: UserDto | null): BillingPlanKind {
+  if (!u) return 'none';
+  const now = Date.now();
+  const trialMs = u.trialEndsAt ? new Date(u.trialEndsAt).getTime() : 0;
+  const paidMs = u.paidUntil ? new Date(u.paidUntil).getTime() : 0;
+  const hasTrial = Number.isFinite(trialMs) && trialMs > now;
+  const hasPaid = Number.isFinite(paidMs) && paidMs > now;
+
+  if (u.billingStatus === 'cancelled') return 'cancelled';
+  if (u.billingStatus === 'active') {
+    if (u.cpSubscriptionId) return 'paid';
+    if (hasPaid || u.paidUntil) return 'free';
+    return 'lifetime';
+  }
+  if (hasTrial) return 'trial';
+  return 'none';
+}
+
 export default function AdminUserPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -77,6 +97,7 @@ export default function AdminUserPage() {
   const [trialEndsAt, setTrialEndsAt] = useState('');
   const [paidUntil, setPaidUntil] = useState('');
   const [billingStatus, setBillingStatus] = useState<'none' | 'active' | 'past_due' | 'cancelled'>('none');
+  const [planKind, setPlanKind] = useState<BillingPlanKind>('none');
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +122,7 @@ export default function AdminUserPage() {
         setTrialEndsAt(toLocalInputValue(user?.trialEndsAt ?? null));
         setPaidUntil(toLocalInputValue(user?.paidUntil ?? null));
         setBillingStatus(pickBillingStatus(user?.billingStatus));
+        setPlanKind(derivePlanKind(user));
       } catch {
         if (cancelled) return;
         setError('Ошибка сети');
@@ -151,6 +173,7 @@ export default function AdminUserPage() {
       setTrialEndsAt(toLocalInputValue(user?.trialEndsAt ?? null));
       setPaidUntil(toLocalInputValue(user?.paidUntil ?? null));
       setBillingStatus(pickBillingStatus(user?.billingStatus));
+      setPlanKind(derivePlanKind(user));
     } catch {
       setError('Ошибка сети');
     } finally {
@@ -274,22 +297,59 @@ export default function AdminUserPage() {
                 <div className="text-sm font-semibold">Подписка / доступ</div>
 
                 <label className="block text-sm font-medium">
-                  Статус подписки
+                  Статус
                   <select
-                    value={billingStatus}
-                    onChange={(e) => setBillingStatus(pickBillingStatus(e.target.value))}
+                    value={planKind}
+                    onChange={(e) => {
+                      const next = String(e.target.value || '').trim() as BillingPlanKind;
+                      setPlanKind(next);
+                      if (next === 'none') {
+                        setBillingStatus('none');
+                        setTrialEndsAt('');
+                        setPaidUntil('');
+                        return;
+                      }
+                      if (next === 'trial') {
+                        setBillingStatus('none');
+                        setPaidUntil('');
+                        return;
+                      }
+                      if (next === 'paid') {
+                        setBillingStatus('active');
+                        setTrialEndsAt('');
+                        return;
+                      }
+                      if (next === 'free') {
+                        setBillingStatus('active');
+                        setTrialEndsAt('');
+                        return;
+                      }
+                      if (next === 'lifetime') {
+                        setBillingStatus('active');
+                        setTrialEndsAt('');
+                        setPaidUntil('');
+                        return;
+                      }
+                      if (next === 'cancelled') {
+                        setBillingStatus('cancelled');
+                        setTrialEndsAt('');
+                        return;
+                      }
+                    }}
                     className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="none">none</option>
-                    <option value="active">active</option>
-                    <option value="past_due">past_due</option>
-                    <option value="cancelled">cancelled</option>
+                    <option value="none">Нет подписки</option>
+                    <option value="trial">Пробный период</option>
+                    <option value="paid">Платная подписка</option>
+                    <option value="free">Бесплатная подписка (до даты)</option>
+                    <option value="lifetime">Бессрочная подписка</option>
+                    <option value="cancelled">Подписка отменена</option>
                   </select>
                 </label>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                {planKind === 'trial' ? (
                   <label className="block text-sm font-medium">
-                    Trial до
+                    Пробный период до
                     <input
                       value={trialEndsAt}
                       onChange={(e) => setTrialEndsAt(e.target.value)}
@@ -297,8 +357,32 @@ export default function AdminUserPage() {
                       type="datetime-local"
                     />
                   </label>
+                ) : null}
+
+                {planKind === 'paid' ? (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">
+                      Доступ до (оплачено)
+                      <input
+                        value={paidUntil}
+                        onChange={(e) => setPaidUntil(e.target.value)}
+                        className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                        type="datetime-local"
+                      />
+                    </label>
+                    <div className="text-xs text-muted-foreground">
+                      Следующее списание: {(() => {
+                        const iso = fromLocalInputValue(paidUntil);
+                        return iso ? new Date(iso).toLocaleString() : '—';
+                      })()}{' '}
+                      (ориентируемся на срок доступа)
+                    </div>
+                  </div>
+                ) : null}
+
+                {planKind === 'free' ? (
                   <label className="block text-sm font-medium">
-                    Оплачено до
+                    Бесплатная подписка до
                     <input
                       value={paidUntil}
                       onChange={(e) => setPaidUntil(e.target.value)}
@@ -306,7 +390,19 @@ export default function AdminUserPage() {
                       type="datetime-local"
                     />
                   </label>
-                </div>
+                ) : null}
+
+                {planKind === 'cancelled' ? (
+                  <label className="block text-sm font-medium">
+                    Доступ до (если уже оплачено)
+                    <input
+                      value={paidUntil}
+                      onChange={(e) => setPaidUntil(e.target.value)}
+                      className="mt-1 h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                      type="datetime-local"
+                    />
+                  </label>
+                ) : null}
 
                 <div className="grid gap-1 text-xs text-muted-foreground">
                   <div>
@@ -327,6 +423,12 @@ export default function AdminUserPage() {
                   >
                     Отменить подписку у провайдера
                   </button>
+                ) : null}
+
+                {u.cpSubscriptionId && (planKind === 'free' || planKind === 'lifetime') ? (
+                  <div className="text-xs text-muted-foreground">
+                    Внимание: у пользователя есть активная подписка у провайдера. Чтобы не было автосписаний, сначала нажмите «Отменить подписку у провайдера».
+                  </div>
                 ) : null}
               </div>
             </div>

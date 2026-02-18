@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { SubscriptionActivatedModal } from '../../components/SubscriptionActivatedModal';
+
 type Me = {
   id: string;
   email: string;
@@ -64,7 +66,15 @@ function daysLeftUntil(iso: string | null): number | null {
 function billingStatusRu(billing: BillingDto | null): string {
   if (!billing) return '—';
   if (billing.access?.ok && billing.access.reason === 'admin') return 'Администратор';
-  if (billing.access?.ok && billing.access.reason === 'trial') return 'Бесплатный период';
+  const now = Date.now();
+  const paidUntilMs = billing.paidUntil ? new Date(billing.paidUntil).getTime() : 0;
+  const trialEndsAtMs = billing.trialEndsAt ? new Date(billing.trialEndsAt).getTime() : 0;
+  const hasPaid = Number.isFinite(paidUntilMs) && paidUntilMs > now;
+  const hasTrial = Number.isFinite(trialEndsAtMs) && trialEndsAtMs > now;
+  if (billing.billingStatus === 'active' && !billing.cpSubscriptionId && !billing.paidUntil) return 'Бессрочная подписка';
+  if (billing.billingStatus === 'active' && hasPaid && !billing.cpSubscriptionId) return 'Бесплатная подписка';
+  if (hasPaid) return 'Активная подписка';
+  if (hasTrial) return 'Пробный период';
   if (billing.billingStatus === 'active') return 'Активная подписка';
   if (billing.billingStatus === 'past_due') return 'Оплата не прошла';
   if (billing.billingStatus === 'cancelled') return 'Подписка отменена';
@@ -88,6 +98,7 @@ export default function SettingsPage() {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingInfo, setBillingInfo] = useState<string | null>(null);
   const [billingActionId, setBillingActionId] = useState<null | 'pay' | 'cancel'>(null);
+  const [billingActivatedOpen, setBillingActivatedOpen] = useState(false);
 
   const refreshBilling = async (): Promise<BillingDto | null> => {
     const res = await fetch('/api/billing/status', { method: 'GET', credentials: 'include', cache: 'no-store' });
@@ -233,12 +244,18 @@ export default function SettingsPage() {
         },
         async () => {
           setBillingInfo('Платёж принят. Обновляем статус подписки…');
+          let last: BillingDto | null = null;
           for (let i = 0; i < 10; i++) {
             await new Promise((r) => setTimeout(r, 1500));
-            const latest = await refreshBilling();
-            if (latest?.billingStatus === 'active') break;
+            last = await refreshBilling();
+            if (last?.billingStatus === 'active') break;
           }
-          setBillingInfo('Готово.');
+          if (last?.billingStatus === 'active') {
+            setBillingInfo(null);
+            setBillingActivatedOpen(true);
+          } else {
+            setBillingInfo('Готово.');
+          }
           if (watchdog) window.clearTimeout(watchdog);
           setBillingBusy(false);
           setBillingActionId(null);
@@ -369,6 +386,12 @@ export default function SettingsPage() {
             )}
           </div>
         ) : null}
+
+        <SubscriptionActivatedModal
+          open={billingActivatedOpen}
+          paidUntil={billing?.paidUntil ?? null}
+          onClose={() => setBillingActivatedOpen(false)}
+        />
 
         <div className="card-elevated p-6 space-y-4">
           <h2 className="text-lg font-bold">Имя</h2>

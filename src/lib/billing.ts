@@ -50,7 +50,10 @@ export function hasBillingAccess(u: {
   if (u.role === 'admin') return { ok: true, reason: 'admin' };
   const now = Date.now();
   if (u.trialEndsAt && u.trialEndsAt.getTime() > now) return { ok: true, reason: 'trial' };
-  if (u.billingStatus === 'active' && (!u.paidUntil || u.paidUntil.getTime() > now)) return { ok: true, reason: 'paid' };
+  // If user has paid/free access until a date — allow regardless of status (e.g. cancelled but still paid until).
+  if (u.paidUntil && u.paidUntil.getTime() > now) return { ok: true, reason: 'paid' };
+  // Lifetime access: billingStatus active and no expiry.
+  if (u.billingStatus === 'active' && !u.paidUntil) return { ok: true, reason: 'paid' };
   return { ok: false, reason: 'none' };
 }
 

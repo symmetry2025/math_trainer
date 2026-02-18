@@ -20,7 +20,7 @@ export async function POST() {
   const now = new Date();
   await prisma.user.update({
     where: { id: u.id },
-    data: { billingStatus: 'cancelled', billingUpdatedAt: now },
+    data: { billingStatus: 'cancelled', billingUpdatedAt: now, cpSubscriptionId: null, cpToken: null },
   });
 
   return NextResponse.json({ ok: true });

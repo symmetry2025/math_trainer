@@ -65,11 +65,17 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: accountId },
-    select: { id: true, email: true, cpSubscriptionId: true, billingStatus: true, paidUntil: true },
+    select: { id: true, email: true, cpSubscriptionId: true, billingStatus: true, paidUntil: true, trialEndsAt: true },
   });
   if (!user) return NextResponse.json({ code: 0 }, { status: 200 });
 
-  const base = user.paidUntil && user.paidUntil.getTime() > now.getTime() ? user.paidUntil : now;
+  const base = new Date(
+    Math.max(
+      now.getTime(),
+      user.paidUntil?.getTime() ?? 0,
+      user.trialEndsAt?.getTime() ?? 0,
+    ),
+  );
   const paidUntil = addOneMonthUtc(base);
 
   // If this is a recurring payment for an existing subscription — just extend access.
@@ -100,7 +106,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 0 }, { status: 200 });
   }
 
-  const startDate = addOneMonthUtc(now).toISOString();
+  // If user pays during trial, extend access by 1 month from trial end
+  // and set the first recurrent charge to happen when current access ends.
+  const startDate = paidUntil.toISOString();
   try {
     const created = await cloudPaymentsCreateSubscription({
       token,

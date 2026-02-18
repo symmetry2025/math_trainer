@@ -46,6 +46,22 @@ function fmtDate(iso: string | null): string {
   }
 }
 
+function isCloudPaymentsWidgetOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  // CloudPayments widget injects an overlay/iframe; we keep checks broad to avoid coupling to internals.
+  const hasIframe = !!document.querySelector('iframe[src*="cloudpayments" i]');
+  const hasKnownIdsOrClasses = !!document.querySelector(
+    [
+      '#cp-widget',
+      '[id*="cloudpayments" i]',
+      '[class*="cloudpayments" i]',
+      '[class*="cp-widget" i]',
+      '[id*="cp-" i]',
+    ].join(','),
+  );
+  return hasIframe || hasKnownIdsOrClasses;
+}
+
 export function BillingClient(props: {
   me: { id: string; email: string };
   cpPublicId: string;
@@ -59,6 +75,7 @@ export function BillingClient(props: {
   const [info, setInfo] = useState<string | null>(null);
   const [showActivated, setShowActivated] = useState(false);
   const [pendingActivationNotice, setPendingActivationNotice] = useState(false);
+  const [showActivatedWhenWidgetClosed, setShowActivatedWhenWidgetClosed] = useState(false);
 
   const statusLabel = useMemo(() => {
     const now = Date.now();
@@ -88,6 +105,62 @@ export function BillingClient(props: {
   };
 
   useEffect(() => {
+    if (!pendingActivationNotice) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    // If widget callbacks don't fire (close/3DS flows), still poll webhooks result.
+    (async () => {
+      let last: BillingDto | null = null;
+      while (!cancelled && Date.now() - startedAt < 120_000) {
+        await new Promise((r) => setTimeout(r, 1500));
+        last = await refresh();
+        if (last?.billingStatus === 'active') {
+          setInfo(null);
+          setShowActivatedWhenWidgetClosed(true);
+          setPendingActivationNotice(false);
+          return;
+        }
+      }
+      if (!cancelled) {
+        setInfo('Если статус не обновился — подожди минуту и обнови страницу.');
+        setPendingActivationNotice(false);
+      }
+    })();
+
+    // Don't keep UI in "busy" if form is closed without callbacks.
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) setBusy(false);
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingActivationNotice]);
+
+  useEffect(() => {
+    if (!showActivatedWhenWidgetClosed) return;
+    let cancelled = false;
+
+    const tryShow = () => {
+      if (cancelled) return;
+      if (!isCloudPaymentsWidgetOpen()) {
+        setShowActivated(true);
+        setShowActivatedWhenWidgetClosed(false);
+      }
+    };
+
+    tryShow();
+    const interval = window.setInterval(tryShow, 300);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [showActivatedWhenWidgetClosed]);
+
+  useEffect(() => {
     // Lazy-load CloudPayments widget script.
     const id = 'cp-widget';
     if (document.getElementById(id)) return;
@@ -115,6 +188,7 @@ export function BillingClient(props: {
     const widget = new window.cp.CloudPayments();
     setBusy(true);
     setPendingActivationNotice(true);
+    setShowActivatedWhenWidgetClosed(false);
     try {
       widget.pay(
         'charge',
@@ -143,7 +217,7 @@ export function BillingClient(props: {
           }
           if (last?.billingStatus === 'active') {
             setInfo(null);
-            if (pendingActivationNotice) setShowActivated(true);
+            setShowActivatedWhenWidgetClosed(true);
           } else {
             setInfo('Готово. Если статус не обновился — подожди минуту и обнови страницу.');
           }
@@ -240,7 +314,15 @@ export function BillingClient(props: {
         )}
       </div>
 
-      <SubscriptionActivatedModal open={showActivated} paidUntil={billing.paidUntil} onClose={() => setShowActivated(false)} />
+      <SubscriptionActivatedModal
+        open={showActivated}
+        paidUntil={billing.paidUntil}
+        onClose={async () => {
+          setShowActivated(false);
+          // Best-effort refresh after user closes the success notice.
+          await refresh();
+        }}
+      />
     </div>
   );
 }

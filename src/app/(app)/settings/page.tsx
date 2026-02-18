@@ -55,6 +55,22 @@ function fmtDate(iso: string | null): string {
   }
 }
 
+function isCloudPaymentsWidgetOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  // CloudPayments widget injects an overlay/iframe; keep checks broad to avoid coupling to internals.
+  const hasIframe = !!document.querySelector('iframe[src*="cloudpayments" i]');
+  const hasKnownIdsOrClasses = !!document.querySelector(
+    [
+      '#cp-widget',
+      '[id*="cloudpayments" i]',
+      '[class*="cloudpayments" i]',
+      '[class*="cp-widget" i]',
+      '[id*="cp-" i]',
+    ].join(','),
+  );
+  return hasIframe || hasKnownIdsOrClasses;
+}
+
 function daysLeftUntil(iso: string | null): number | null {
   if (!iso) return null;
   const t = new Date(iso).getTime();
@@ -99,6 +115,8 @@ export default function SettingsPage() {
   const [billingInfo, setBillingInfo] = useState<string | null>(null);
   const [billingActionId, setBillingActionId] = useState<null | 'pay' | 'cancel'>(null);
   const [billingActivatedOpen, setBillingActivatedOpen] = useState(false);
+  const [billingPendingActivationNotice, setBillingPendingActivationNotice] = useState(false);
+  const [billingShowActivatedWhenWidgetClosed, setBillingShowActivatedWhenWidgetClosed] = useState(false);
 
   const refreshBilling = async (): Promise<BillingDto | null> => {
     const res = await fetch('/api/billing/status', { method: 'GET', credentials: 'include', cache: 'no-store' });
@@ -110,6 +128,65 @@ export default function SettingsPage() {
     }
     return null;
   };
+
+  useEffect(() => {
+    if (!billingPendingActivationNotice) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    // If the widget is closed without firing callbacks, still poll webhooks result.
+    (async () => {
+      let last: BillingDto | null = null;
+      while (!cancelled && Date.now() - startedAt < 120_000) {
+        await new Promise((r) => setTimeout(r, 1500));
+        last = await refreshBilling();
+        if (last?.billingStatus === 'active') {
+          setBillingInfo(null);
+          setBillingShowActivatedWhenWidgetClosed(true);
+          setBillingPendingActivationNotice(false);
+          return;
+        }
+      }
+      if (!cancelled) {
+        setBillingInfo('Если статус не обновился — подожди минуту и обнови страницу.');
+        setBillingPendingActivationNotice(false);
+      }
+    })();
+
+    // Don't keep UI in "busy" if form is closed without callbacks.
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled) {
+        setBillingBusy(false);
+        setBillingActionId(null);
+      }
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billingPendingActivationNotice]);
+
+  useEffect(() => {
+    if (!billingShowActivatedWhenWidgetClosed) return;
+    let cancelled = false;
+
+    const tryShow = () => {
+      if (cancelled) return;
+      if (!isCloudPaymentsWidgetOpen()) {
+        setBillingActivatedOpen(true);
+        setBillingShowActivatedWhenWidgetClosed(false);
+      }
+    };
+
+    tryShow();
+    const interval = window.setInterval(tryShow, 300);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [billingShowActivatedWhenWidgetClosed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,6 +295,8 @@ export default function SettingsPage() {
     let watchdog: number | null = null;
     setBillingBusy(true);
     setBillingActionId('pay');
+    setBillingPendingActivationNotice(true);
+    setBillingShowActivatedWhenWidgetClosed(false);
     try {
       const returnUrl = `${window.location.origin}/settings`;
       // If the widget is closed without firing callbacks, don't leave UI stuck in "busy".
@@ -252,19 +331,21 @@ export default function SettingsPage() {
           }
           if (last?.billingStatus === 'active') {
             setBillingInfo(null);
-            setBillingActivatedOpen(true);
+            setBillingShowActivatedWhenWidgetClosed(true);
           } else {
             setBillingInfo('Готово.');
           }
           if (watchdog) window.clearTimeout(watchdog);
           setBillingBusy(false);
           setBillingActionId(null);
+          setBillingPendingActivationNotice(false);
         },
         async () => {
           setBillingError('Платёж не завершён.');
           if (watchdog) window.clearTimeout(watchdog);
           setBillingBusy(false);
           setBillingActionId(null);
+          setBillingPendingActivationNotice(false);
         },
       );
     } catch (e: unknown) {
@@ -272,6 +353,7 @@ export default function SettingsPage() {
       if (watchdog) window.clearTimeout(watchdog);
       setBillingBusy(false);
       setBillingActionId(null);
+      setBillingPendingActivationNotice(false);
     }
   };
 
@@ -390,7 +472,10 @@ export default function SettingsPage() {
         <SubscriptionActivatedModal
           open={billingActivatedOpen}
           paidUntil={billing?.paidUntil ?? null}
-          onClose={() => setBillingActivatedOpen(false)}
+          onClose={async () => {
+            setBillingActivatedOpen(false);
+            await refreshBilling();
+          }}
         />
 
         <div className="card-elevated p-6 space-y-4">

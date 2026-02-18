@@ -2,8 +2,9 @@ FROM node:20-bookworm-slim AS build
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.30.0 --activate
 
 WORKDIR /app
 
@@ -24,8 +25,9 @@ FROM node:20-bookworm-slim AS runner
 ENV NODE_ENV="production"
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.30.0 --activate
 
 WORKDIR /app
 

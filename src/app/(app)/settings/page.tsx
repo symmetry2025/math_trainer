@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { SubscriptionActivatedModal } from '../../components/SubscriptionActivatedModal';
+import { SubscriptionActivatedModal } from '../../../components/SubscriptionActivatedModal';
 
 type Me = {
   id: string;

@@ -23,10 +23,16 @@ export async function getCurrentUserOrNull(): Promise<(Pick<User, 'id' | 'email'
   const token = getSessionCookieValue();
   if (!token) return null;
   const tokenHash = hashToken(token);
-  const sess = await prisma.session.findUnique({
-    where: { tokenHash },
-    include: { user: { select: { id: true, email: true, role: true, displayName: true, emailVerifiedAt: true } } },
-  });
+  let sess: any = null;
+  try {
+    sess = await prisma.session.findUnique({
+      where: { tokenHash },
+      include: { user: { select: { id: true, email: true, role: true, displayName: true, emailVerifiedAt: true } } },
+    });
+  } catch {
+    // If DB is restarting/recovering, treat as "not logged in" (avoid 500 across the app).
+    return null;
+  }
   if (!sess) return null;
   if (sess.expiresAt.getTime() <= Date.now()) return null;
   return sess.user;

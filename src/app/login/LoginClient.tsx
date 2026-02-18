@@ -9,6 +9,7 @@ function friendlyAuthError(code: unknown): string {
   if (c === 'invalid_credentials') return 'Неверная почта или пароль';
   if (c === 'email_not_verified') return 'Почта не подтверждена. Проверь письмо и перейди по ссылке.';
   if (c === 'invalid_input') return 'Проверь, что почта и пароль заполнены корректно';
+  if (c === 'db_unavailable') return 'Сервер базы данных перезапускается. Попробуй ещё раз через 30–60 секунд.';
   if (c === 'email_taken') return 'Этот email уже занят';
   if (c === 'email_send_failed') return 'Не удалось отправить письмо. Проверь настройки почты и повтори.';
   if (c === 'invalid_or_expired_token') return 'Ссылка недействительна или устарела';

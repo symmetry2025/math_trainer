@@ -10,6 +10,7 @@ export * from "./dto/challenge";
 export * from "./dto/stats";
 export * from "./dto/trainer-progress";
 export * from "./dto/referrals";
+export * from "./dto/family";
 export * from "./dto/admin-alfacrm";
 export * from "./dto/admin-parent-invites";
 export * from "./dto/admin-teacher-invites";

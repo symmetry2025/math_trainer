@@ -57,3 +57,42 @@ export function hasBillingAccess(u: {
   return { ok: false, reason: 'none' };
 }
 
+export async function getEffectiveBillingAccessByUserId(userId: string): Promise<{
+  role: string;
+  access: { ok: boolean; reason: 'admin' | 'trial' | 'paid' | 'none' };
+  viaParent: boolean;
+  parentUserId: string | null;
+}> {
+  const u = await getBillingInfoByUserId(userId);
+  if (!u) return { role: 'student', access: { ok: false, reason: 'none' }, viaParent: false, parentUserId: null };
+
+  const direct = hasBillingAccess({
+    role: u.role,
+    trialEndsAt: u.trialEndsAt,
+    billingStatus: u.billingStatus,
+    paidUntil: u.paidUntil,
+  });
+  if (direct.ok) return { role: u.role, access: direct, viaParent: false, parentUserId: null };
+
+  if (u.role !== 'student') return { role: u.role, access: direct, viaParent: false, parentUserId: null };
+
+  const link = await prisma.parentStudentLink.findUnique({
+    where: { studentId: userId },
+    select: {
+      parentId: true,
+      parent: { select: { role: true, trialEndsAt: true, billingStatus: true, paidUntil: true } },
+    },
+  });
+  if (!link?.parent) return { role: u.role, access: direct, viaParent: false, parentUserId: null };
+
+  const parentAccess = hasBillingAccess({
+    role: link.parent.role,
+    trialEndsAt: link.parent.trialEndsAt,
+    billingStatus: link.parent.billingStatus,
+    paidUntil: link.parent.paidUntil,
+  });
+  if (parentAccess.ok) return { role: u.role, access: { ok: true, reason: 'paid' }, viaParent: true, parentUserId: link.parentId };
+
+  return { role: u.role, access: direct, viaParent: false, parentUserId: link.parentId };
+}
+

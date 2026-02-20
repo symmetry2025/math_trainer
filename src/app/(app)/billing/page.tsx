@@ -8,6 +8,7 @@ import { BillingClient } from './BillingClient';
 export default async function BillingPage() {
   const me = await getCurrentUserOrNull();
   if (!me) redirect('/login');
+  if (me.role === 'student') redirect('/settings');
 
   const info = await getBillingInfoByUserId(me.id);
   if (!info) redirect('/login');

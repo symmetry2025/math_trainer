@@ -11,6 +11,22 @@ type Me = {
   role?: 'student' | 'parent' | 'admin' | 'promoter' | string | null;
 };
 
+type StudentFamilyStatusDto = {
+  linkedParent: { userId: string; displayName: string | null; email: string | null } | null;
+  trialEndsAt: string | null;
+};
+
+type ParentInviteDto = { code: string; updatedAt: string };
+
+type ParentChildListItemDto = {
+  userId: string;
+  displayName: string | null;
+  email: string | null;
+  linkedAt: string;
+  trialEndsAt: string | null;
+  stats: { totalProblems: number; totalCorrect: number; totalMistakes: number; totalTimeSec: number; sessionsCount: number } | null;
+};
+
 type BillingDto = {
   cpPublicId: string | null;
   cpMode?: 'live' | 'test';
@@ -117,6 +133,19 @@ export default function SettingsPage() {
   const [billingPendingActivationNotice, setBillingPendingActivationNotice] = useState(false);
   const [billingShowActivatedWhenWidgetClosed, setBillingShowActivatedWhenWidgetClosed] = useState(false);
   const isPromoter = me?.role === 'promoter';
+  const isStudent = me?.role === 'student';
+  const isParent = me?.role === 'parent';
+
+  const [studentFamily, setStudentFamily] = useState<StudentFamilyStatusDto | null>(null);
+  const [studentParentCode, setStudentParentCode] = useState('');
+  const [studentFamilyBusy, setStudentFamilyBusy] = useState(false);
+  const [studentFamilyError, setStudentFamilyError] = useState<string | null>(null);
+  const [studentFamilyInfo, setStudentFamilyInfo] = useState<string | null>(null);
+
+  const [parentInvite, setParentInvite] = useState<ParentInviteDto | null>(null);
+  const [parentChildren, setParentChildren] = useState<ParentChildListItemDto[]>([]);
+  const [parentFamilyBusy, setParentFamilyBusy] = useState(false);
+  const [parentFamilyError, setParentFamilyError] = useState<string | null>(null);
 
   const refreshBilling = async (): Promise<BillingDto | null> => {
     const res = await fetch('/api/billing/status', { method: 'GET', credentials: 'include', cache: 'no-store' });
@@ -127,6 +156,95 @@ export default function SettingsPage() {
       return b;
     }
     return null;
+  };
+
+  const refreshStudentFamily = async (): Promise<StudentFamilyStatusDto | null> => {
+    const res = await fetch('/api/student/family', { method: 'GET', credentials: 'include', cache: 'no-store' });
+    const body: unknown = await res.json().catch(() => null);
+    if (!res.ok) return null;
+    const dto = isRecord(body) ? (body as any) : null;
+    const parsed: StudentFamilyStatusDto | null =
+      dto && (dto.linkedParent === null || isRecord(dto.linkedParent))
+        ? { linkedParent: dto.linkedParent ?? null, trialEndsAt: typeof dto.trialEndsAt === 'string' ? dto.trialEndsAt : null }
+        : null;
+    if (parsed) setStudentFamily(parsed);
+    return parsed;
+  };
+
+  const refreshParentFamily = async (): Promise<void> => {
+    setParentFamilyError(null);
+    const [invRes, childrenRes] = await Promise.all([
+      fetch('/api/parent/invite', { method: 'GET', credentials: 'include', cache: 'no-store' }),
+      fetch('/api/parent/children', { method: 'GET', credentials: 'include', cache: 'no-store' }),
+    ]);
+    const invBody: unknown = await invRes.json().catch(() => null);
+    const childrenBody: unknown = await childrenRes.json().catch(() => null);
+    if (invRes.ok && isRecord(invBody) && isRecord((invBody as any).invite)) {
+      const inv = (invBody as any).invite;
+      setParentInvite({ code: String(inv.code || ''), updatedAt: String(inv.updatedAt || '') });
+    }
+    if (childrenRes.ok && isRecord(childrenBody) && Array.isArray((childrenBody as any).children)) {
+      setParentChildren((childrenBody as any).children as ParentChildListItemDto[]);
+    }
+    if (!invRes.ok || !childrenRes.ok) setParentFamilyError('Не удалось загрузить данные семьи');
+  };
+
+  const regenerateParentInvite = async () => {
+    setParentFamilyError(null);
+    setParentFamilyBusy(true);
+    try {
+      const res = await fetch('/api/parent/invite', { method: 'POST', credentials: 'include' });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null) || 'request_failed');
+      if (isRecord(body) && isRecord((body as any).invite)) {
+        const inv = (body as any).invite;
+        setParentInvite({ code: String(inv.code || ''), updatedAt: String(inv.updatedAt || '') });
+      }
+    } catch (e: unknown) {
+      setParentFamilyError(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setParentFamilyBusy(false);
+    }
+  };
+
+  const copyParentInvite = async () => {
+    setParentFamilyError(null);
+    const code = String(parentInvite?.code || '').trim();
+    if (!code) return;
+    try {
+      await window.navigator.clipboard?.writeText(code);
+    } catch {
+      // ignore
+    }
+  };
+
+  const linkToParent = async () => {
+    setStudentFamilyError(null);
+    setStudentFamilyInfo(null);
+    const code = studentParentCode.trim();
+    if (!code) return;
+    setStudentFamilyBusy(true);
+    try {
+      const res = await fetch('/api/student/link-parent', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const err = isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null;
+        throw new Error(err || 'request_failed');
+      }
+      setStudentParentCode('');
+      setStudentFamilyInfo('Готово. Вы привязаны к родителю.');
+      await refreshStudentFamily();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка';
+      setStudentFamilyError(msg === 'invalid_code' ? 'Код не найден. Проверь и попробуй снова.' : msg);
+    } finally {
+      setStudentFamilyBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -205,7 +323,9 @@ export default function SettingsPage() {
         setDisplayName(String(u?.displayName ?? '').trim());
         setNewEmail(String(u?.email ?? '').trim());
         // Best-effort load billing info for the banner (not needed for promoters).
-        if (u?.role !== 'promoter') await refreshBilling();
+        if (u?.role !== 'promoter' && u?.role !== 'student') await refreshBilling();
+        if (u?.role === 'student') await refreshStudentFamily();
+        if (u?.role === 'parent') await refreshParentFamily();
       } catch {
         if (cancelled) return;
         setError('Ошибка сети');
@@ -266,6 +386,7 @@ export default function SettingsPage() {
     // Lazy-load CloudPayments widget script (only for logged-in users).
     if (!me?.id) return;
     if (me?.role === 'promoter') return;
+    if (me?.role === 'student') return;
     const id = 'cp-widget';
     if (document.getElementById(id)) return;
     const s = document.createElement('script');
@@ -402,8 +523,126 @@ export default function SettingsPage() {
         {info ? <div className="card-elevated p-4 text-sm text-foreground">{info}</div> : null}
         {error ? <div className="card-elevated p-4 text-sm text-destructive">{error}</div> : null}
 
+        {/* Family (student) */}
+        {me && isStudent ? (
+          <div className="card-elevated p-6 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Семья</h2>
+                <div className="text-sm text-muted-foreground">Привяжись к родителю по коду, чтобы продолжить после пробного периода</div>
+              </div>
+              <button type="button" className="btn-primary" onClick={refreshStudentFamily} disabled={studentFamilyBusy}>
+                Обновить
+              </button>
+            </div>
+
+            {studentFamilyInfo ? <div className="text-sm text-foreground">{studentFamilyInfo}</div> : null}
+            {studentFamilyError ? <div className="text-sm text-destructive">{studentFamilyError}</div> : null}
+
+            <div className="grid gap-2 text-sm">
+              <div>
+                Пробный период до: <span className="font-semibold">{fmtDate(studentFamily?.trialEndsAt ?? null)}</span>
+                {studentFamily?.trialEndsAt ? (
+                  <span className="text-muted-foreground">
+                    {' '}
+                    (осталось {daysLeftUntil(studentFamily.trialEndsAt) ?? '—'} дн.)
+                  </span>
+                ) : null}
+              </div>
+              <div>
+                Родитель: <span className="font-semibold">{studentFamily?.linkedParent?.displayName || studentFamily?.linkedParent?.email || 'не привязан'}</span>
+              </div>
+            </div>
+
+            {studentFamily?.linkedParent ? null : (
+              <div className="space-y-2">
+                <input
+                  value={studentParentCode}
+                  onChange={(e) => setStudentParentCode(e.target.value)}
+                  className="h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                  placeholder="Код от родителя (например: A2B3C4D5)"
+                />
+                <button type="button" className="btn-primary" onClick={linkToParent} disabled={studentFamilyBusy || !studentParentCode.trim()}>
+                  {studentFamilyBusy ? 'Привязываю…' : 'Привязаться к родителю'}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* Family (parent) */}
+        {me && isParent ? (
+          <div className="card-elevated p-6 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Дети</h2>
+                <div className="text-sm text-muted-foreground">Подписка оформляется здесь (у родителя) и даёт доступ привязанным детям</div>
+              </div>
+              <button type="button" className="btn-primary" onClick={refreshParentFamily} disabled={parentFamilyBusy}>
+                Обновить
+              </button>
+            </div>
+
+            {parentFamilyError ? <div className="text-sm text-destructive">{parentFamilyError}</div> : null}
+
+            <div className="grid gap-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  Код приглашения:{' '}
+                  <span className="font-mono font-semibold">{parentInvite?.code ? parentInvite.code : '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className="btn-secondary" onClick={copyParentInvite} disabled={!parentInvite?.code}>
+                    Копировать
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={regenerateParentInvite} disabled={parentFamilyBusy}>
+                    Обновить код
+                  </button>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Обновлён: <span className="font-semibold">{fmtDate(parentInvite?.updatedAt ?? null)}</span>
+              </div>
+            </div>
+
+            {parentChildren.length ? (
+              <div className="space-y-3">
+                {parentChildren.map((c) => {
+                  const s = c.stats;
+                  const acc = s && s.totalProblems > 0 ? Math.round((s.totalCorrect / s.totalProblems) * 100) : null;
+                  return (
+                    <div key={c.userId} className="rounded-2xl border border-input p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold">{c.displayName || c.email || c.userId}</div>
+                          <div className="text-xs text-muted-foreground">Привязан: {fmtDate(c.linkedAt)}</div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Триал до: {fmtDate(c.trialEndsAt)}</div>
+                      </div>
+                      <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
+                        <div>
+                          Сессий: <span className="font-semibold text-foreground">{s?.sessionsCount ?? '—'}</span>
+                        </div>
+                        <div>
+                          Примеров: <span className="font-semibold text-foreground">{s?.totalProblems ?? '—'}</span>, точность:{' '}
+                          <span className="font-semibold text-foreground">{acc === null ? '—' : `${acc}%`}</span>
+                        </div>
+                        <div>
+                          Ошибок: <span className="font-semibold text-foreground">{s?.totalMistakes ?? '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Пока нет привязанных детей. Отправьте ребёнку код приглашения.</div>
+            )}
+          </div>
+        ) : null}
+
         {/* Billing / Trial banner (requested as first section) */}
-        {me && !isPromoter ? (
+        {me && !isPromoter && !isStudent ? (
           <div className="card-elevated p-6 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -470,7 +709,7 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
-        {!isPromoter ? (
+        {!isPromoter && !isStudent ? (
           <SubscriptionActivatedModal
             open={billingActivatedOpen}
             paidUntil={billing?.paidUntil ?? null}

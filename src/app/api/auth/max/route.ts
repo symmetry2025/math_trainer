@@ -154,7 +154,18 @@ export async function POST(req: Request) {
   // Find by maxUserId. If absent — create.
   let user = await prisma.user.findUnique({
     where: { maxUserId },
-    select: { id: true, email: true, role: true, displayName: true, emailVerifiedAt: true, trialEndsAt: true, billingStatus: true, paidUntil: true },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      displayName: true,
+      emailVerifiedAt: true,
+      trialEndsAt: true,
+      billingStatus: true,
+      paidUntil: true,
+      authProvider: true,
+      onboardingCompletedAt: true,
+    },
   });
   if (!user) {
     const email = makeTechEmail(maxUserId);
@@ -167,8 +178,21 @@ export async function POST(req: Request) {
         displayName,
         emailVerifiedAt: now,
         maxUserId,
+        authProvider: 'max',
+        onboardingCompletedAt: null,
       },
-      select: { id: true, email: true, role: true, displayName: true, emailVerifiedAt: true, trialEndsAt: true, billingStatus: true, paidUntil: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        displayName: true,
+        emailVerifiedAt: true,
+        trialEndsAt: true,
+        billingStatus: true,
+        paidUntil: true,
+        authProvider: true,
+        onboardingCompletedAt: true,
+      },
     });
   } else if (!user.emailVerifiedAt) {
     // Trust MAX user as verified identity for MVP.
@@ -185,6 +209,18 @@ export async function POST(req: Request) {
   await prisma.session.create({
     data: { userId: user.id, tokenHash: hashToken(token), expiresAt: expiresAtFromNow() },
   });
+
+  // If MAX user hasn't selected the role yet — force onboarding.
+  if (user.authProvider === 'max' && !user.onboardingCompletedAt) {
+    const res = NextResponse.json({ ok: true, redirectTo: '/onboarding/role', access: { ok: true, reason: 'trial' }, startParam: startParamRaw || v.parsed.startParam || null });
+    res.cookies.set(AUTH_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    return res;
+  }
 
   // Compute redirect target based on billing access (MVP).
   const info = await getBillingInfoByUserId(user.id).catch(() => null);

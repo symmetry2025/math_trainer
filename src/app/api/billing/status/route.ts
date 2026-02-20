@@ -8,6 +8,7 @@ import { getCpMode, getCpWidgetPublicId } from '../../../../lib/cloudpaymentsCon
 export async function GET() {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (me.role === 'student') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const info = await getBillingInfoByUserId(me.id);
   if (!info) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

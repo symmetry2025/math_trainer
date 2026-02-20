@@ -21,6 +21,11 @@ enum BillingSubscriptionStatus {
   cancelled
 }
 
+enum AuthProvider {
+  web
+  max
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -29,6 +34,8 @@ model User {
   role         Role     @default(student)
   emailVerifiedAt DateTime?
   maxUserId    String?  @unique
+  authProvider AuthProvider @default(web)
+  onboardingCompletedAt DateTime?
   trialEndsAt  DateTime?
   billingStatus BillingSubscriptionStatus @default(none)
   paidUntil    DateTime?
@@ -48,6 +55,10 @@ model User {
 
   promoterProfile Promoter?
   referralAttribution ReferralAttribution?
+
+  parentInvite ParentInvite?
+  childLinks ParentStudentLink[] @relation("ParentToChildren")
+  parentLink ParentStudentLink? @relation("StudentToParent")
 }
 
 model Promoter {
@@ -77,6 +88,30 @@ model ReferralAttribution {
   @@index([promoterId])
   @@index([attributedAt])
   @@index([firstPaidAt])
+}
+
+model ParentInvite {
+  id        String   @id @default(cuid())
+  parentId  String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
+}
+
+model ParentStudentLink {
+  id        String   @id @default(cuid())
+  parentId  String
+  studentId String   @unique
+  createdAt DateTime @default(now())
+
+  parent  User @relation("ParentToChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  student User @relation("StudentToParent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@index([parentId])
+  @@index([createdAt])
 }
 
 model Session {

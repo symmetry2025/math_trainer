@@ -7,6 +7,7 @@ import { cloudPaymentsCancelSubscription } from '../../../../lib/cloudpayments';
 export async function POST() {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (me.role === 'student') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const u = await prisma.user.findUnique({
     where: { id: me.id },

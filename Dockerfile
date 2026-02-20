@@ -19,10 +19,13 @@ WORKDIR /app
 
 # Copy only files needed to resolve dependencies (better cache hit rate).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/shared ./packages/shared
+COPY packages/shared/package.json ./packages/shared/package.json
 
 # Reuse pnpm store across builds (BuildKit cache).
-RUN --mount=type=cache,target=/pnpm/store pnpm -s install --frozen-lockfile
+#
+# IMPORTANT: ignore scripts here to avoid running root postinstall (it builds shared),
+# because we intentionally don't copy full sources into this layer.
+RUN --mount=type=cache,target=/pnpm/store pnpm -s install --frozen-lockfile --ignore-scripts
 
 FROM base AS build
 
@@ -34,6 +37,7 @@ COPY --from=deps /app /app
 # Copy application sources (invalidates only build layers).
 COPY . .
 
+RUN pnpm -s install --frozen-lockfile
 RUN pnpm -s -C packages/shared build
 RUN pnpm -s exec prisma generate
 RUN pnpm -s exec next build

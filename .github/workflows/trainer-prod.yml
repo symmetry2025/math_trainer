@@ -23,7 +23,25 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build & push
+      - name: Promote from staging (fast path)
+        id: promote
+        run: |
+          set -euo pipefail
+          SRC="${{ env.IMAGE }}:staging-${GITHUB_SHA}"
+          DST_TAG="${{ env.IMAGE }}:${GITHUB_REF_NAME}"
+          DST_LATEST="${{ env.IMAGE }}:latest"
+
+          if docker buildx imagetools inspect "$SRC" >/dev/null 2>&1; then
+            echo "[prod] promote $SRC -> $DST_TAG, $DST_LATEST"
+            docker buildx imagetools create -t "$DST_TAG" -t "$DST_LATEST" "$SRC"
+            echo "promoted=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "[prod] staging image not found for $GITHUB_SHA; fallback to build"
+            echo "promoted=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build & push (fallback)
+        if: ${{ steps.promote.outputs.promoted != '1' }}
         uses: docker/build-push-action@v6
         with:
           context: .

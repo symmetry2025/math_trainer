@@ -1,4 +1,5 @@
-FROM node:20-bookworm-slim AS build
+# syntax=docker/dockerfile:1.6
+FROM node:20-bookworm-slim AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -12,9 +13,27 @@ RUN apt-get update -y \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy only files needed to resolve dependencies (better cache hit rate).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared ./packages/shared
+
+# Reuse pnpm store across builds (BuildKit cache).
+RUN --mount=type=cache,target=/pnpm/store pnpm -s install --frozen-lockfile
+
+FROM base AS build
+
+WORKDIR /app
+
+# Reuse dependencies layer.
+COPY --from=deps /app /app
+
+# Copy application sources (invalidates only build layers).
 COPY . .
 
-RUN pnpm -s install --frozen-lockfile
 RUN pnpm -s -C packages/shared build
 RUN pnpm -s exec prisma generate
 RUN pnpm -s exec next build

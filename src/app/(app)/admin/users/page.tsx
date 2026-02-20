@@ -7,7 +7,7 @@ type UserRow = {
   id: string;
   email: string;
   displayName: string | null;
-  role: 'student' | 'parent' | 'admin';
+  role: 'student' | 'parent' | 'admin' | 'promoter';
   emailVerifiedAt: string | null;
   trialEndsAt: string | null;
   billingStatus: 'none' | 'active' | 'past_due' | 'cancelled';

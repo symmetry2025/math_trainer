@@ -27,6 +27,7 @@ export function PostSessionAchievements(props: {
   achievements: NewlyUnlockedAchievementDto[];
   unlockedPresetTitle?: string | null;
   title: string;
+  presetId: string;
   presetTitle: string;
   result: SessionResult;
   canGoNext: boolean;
@@ -90,6 +91,7 @@ export function PostSessionAchievements(props: {
         {showResult ? (
           <TrainerResultCard
             title={props.title}
+            presetId={props.presetId}
             presetTitle={props.presetTitle}
             result={props.result}
             canGoNext={props.canGoNext}

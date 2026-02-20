@@ -9,6 +9,7 @@ const DEMO_EMAIL_BY_ROLE: Record<Role, string> = {
   student: 'demo.student@trainer.local',
   parent: 'demo.parent@trainer.local',
   admin: 'demo.admin@trainer.local',
+  promoter: 'demo.promoter@trainer.local',
 };
 
 function devOnly() {
@@ -24,7 +25,7 @@ export async function POST(_req: Request, ctx: { params: { role: string } }) {
   if (blocked) return blocked;
 
   const role = ctx?.params?.role;
-  const isRole = role === 'student' || role === 'parent' || role === 'admin';
+  const isRole = role === 'student' || role === 'parent' || role === 'admin' || role === 'promoter';
   if (!isRole) return NextResponse.json({ error: 'invalid_role' }, { status: 400 });
 
   const email = DEMO_EMAIL_BY_ROLE[role];
@@ -36,9 +37,24 @@ export async function POST(_req: Request, ctx: { params: { role: string } }) {
   const user = await prisma.user.upsert({
     where: { email },
     update: { role, emailVerifiedAt: now },
-    create: { email, role, passwordHash, emailVerifiedAt: now, displayName: role === 'admin' ? 'Админ' : role === 'parent' ? 'Родитель' : 'Ученик' },
+    create: {
+      email,
+      role,
+      passwordHash,
+      emailVerifiedAt: now,
+      displayName: role === 'admin' ? 'Админ' : role === 'parent' ? 'Родитель' : role === 'promoter' ? 'Промоутер' : 'Ученик',
+    },
     select: { id: true, email: true, role: true },
   });
+
+  if (role === 'promoter') {
+    await prisma.promoter.upsert({
+      where: { userId: user.id },
+      update: { code: 'demo_promoter', displayName: 'Демо промоутер' },
+      create: { userId: user.id, code: 'demo_promoter', displayName: 'Демо промоутер' },
+      select: { id: true },
+    });
+  }
 
   const token = newToken();
   await prisma.session.create({

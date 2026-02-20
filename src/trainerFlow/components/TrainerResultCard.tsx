@@ -1,6 +1,6 @@
 'use client';
 
-import { RotateCcw, Trophy, XCircle } from 'lucide-react';
+import { Gem, RotateCcw, Trophy, XCircle } from 'lucide-react';
 
 import type { SessionResult } from '../types';
 import { cn } from '../../lib/utils';
@@ -16,6 +16,7 @@ function formatTime(seconds: number | undefined): string {
 
 export function TrainerResultCard(props: {
   title: string;
+  presetId: string;
   presetTitle: string;
   result: SessionResult;
   canGoNext: boolean;
@@ -30,7 +31,13 @@ export function TrainerResultCard(props: {
   const solved = metrics.solved ?? undefined;
   const mistakes = metrics.mistakes ?? undefined;
   const timeSec = metrics.timeSec ?? undefined;
-  const stars = metrics.starsEarned ?? (metrics.won ? 3 : undefined);
+  const stars = metrics.starsEarned ?? undefined;
+  const crystalsEarned = Math.max(0, Math.floor(Number(metrics.crystalsEarned ?? 0)));
+
+  const isRace = String(props.presetId || '').startsWith('race:');
+  const isAccuracy = props.presetId === 'accuracy' || props.presetId === 'accuracy-input';
+  const isSpeed = props.presetId === 'speed';
+  const showCrystals = isAccuracy || isSpeed;
 
   return (
     <div className="card-elevated p-6 md:p-8 text-center space-y-6 animate-scale-in">
@@ -75,10 +82,18 @@ export function TrainerResultCard(props: {
           </div>
         ) : null}
 
-        {typeof stars === 'number' ? (
+        {isRace && typeof stars === 'number' ? (
           <div className="p-4 rounded-2xl bg-accent/10">
             <div className="text-2xl font-bold tabular-nums">{stars}</div>
             <div className="text-sm text-muted-foreground">Звёзды</div>
+          </div>
+        ) : showCrystals ? (
+          <div className="p-4 rounded-2xl bg-accent/10">
+            <div className="flex items-center justify-center gap-2">
+              <div className="text-2xl font-bold tabular-nums">+{crystalsEarned}</div>
+              <Gem className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div className="text-sm text-muted-foreground">Кристаллы</div>
           </div>
         ) : null}
       </div>

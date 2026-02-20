@@ -13,8 +13,17 @@ import { useCrystals } from '../lib/useCrystals';
 type AuthState =
   | { status: 'loading' }
   | { status: 'guest' }
-  | { status: 'authed'; user: { id: string; email?: string | null; role?: string | null } }
+  | { status: 'authed'; user: { id: string; email?: string | null; role?: string | null; displayName?: string | null } }
   | { status: 'error' };
+
+function roleRu(role: string | null | undefined): string {
+  const r = String(role || '').trim();
+  if (r === 'parent') return 'Родитель';
+  if (r === 'student') return 'Ученик';
+  if (r === 'admin') return 'Админ';
+  if (r === 'promoter') return 'Промоутер';
+  return r || '—';
+}
 
 function getInitialDarkMode() {
   try {
@@ -79,6 +88,9 @@ export function TrainerShell(props: { children: ReactNode }) {
 
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
   const isAdmin = auth.status === 'authed' && auth.user.role === 'admin';
+  const isPromoter = auth.status === 'authed' && auth.user.role === 'promoter';
+  const cabinetHref = isAdmin ? '/admin/users' : isPromoter ? '/promoter' : '/settings';
+  const settingsHref = '/settings';
   const doLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -111,6 +123,7 @@ export function TrainerShell(props: { children: ReactNode }) {
             id: id || 'user',
             email: typeof user?.email === 'string' ? user.email : null,
             role: typeof user?.role === 'string' ? user.role : null,
+            displayName: typeof user?.displayName === 'string' ? user.displayName : null,
           },
         });
       } catch {
@@ -170,8 +183,18 @@ export function TrainerShell(props: { children: ReactNode }) {
     [],
   );
 
+  const promoterNav = useMemo(
+    () => [
+      { group: 'Промоутер', label: 'Кабинет', href: '/promoter', icon: Users },
+    ],
+    [],
+  );
+
   const adminNav = useMemo(
-    () => [{ group: 'Админка', label: 'Пользователи', href: '/admin/users', icon: Users }],
+    () => [
+      { group: 'Админка', label: 'Пользователи', href: '/admin/users', icon: Users },
+      { group: 'Админка', label: 'Промоутеры', href: '/admin/promoters', icon: Users },
+    ],
     [],
   );
 
@@ -179,17 +202,18 @@ export function TrainerShell(props: { children: ReactNode }) {
 
   const activeHref = useMemo(() => {
     const hrefs: string[] = [];
-    if (!isAdmin) {
+    if (!isAdmin && !isPromoter) {
       for (const g of trainerNav) for (const i of g.items) hrefs.push(i.href);
       for (const p of progressNav) hrefs.push(p.href);
     }
+    if (isPromoter) for (const p of promoterNav) hrefs.push(p.href);
     for (const a of adminNav) hrefs.push(a.href);
     hrefs.sort((a, b) => b.length - a.length);
     for (const href of hrefs) {
       if (pathname === href || pathname.startsWith(href + '/')) return href;
     }
     return null;
-  }, [trainerNav, progressNav, adminNav, pathname, isAdmin]);
+  }, [trainerNav, progressNav, promoterNav, adminNav, pathname, isAdmin, isPromoter]);
 
   const hideMobileHeader = useMemo(() => {
     // Hide ONLY on a concrete trainer page (e.g. /addition/<exerciseId>), because TrainerFlow provides its own header there.
@@ -248,8 +272,7 @@ export function TrainerShell(props: { children: ReactNode }) {
 
         {/* Nav */}
         <nav className={cn('flex-1 px-3 pb-3', collapsed ? 'pt-1' : 'pt-2')}>
-          {!isAdmin ? <div className="mb-4">
-            {!collapsed ? <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Тренажёры</div> : null}
+          {!isAdmin && !isPromoter ? <div className="mb-4">
 
             <div className="space-y-1">
               {trainerNav.map((g) => {
@@ -320,8 +343,7 @@ export function TrainerShell(props: { children: ReactNode }) {
             </div>
           </div> : null}
 
-          {!isAdmin ? <div className="mb-4">
-            {!collapsed ? <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Прогресс</div> : null}
+          {!isAdmin && !isPromoter ? <div className="mb-4">
             <div className="space-y-1">
               {progressNav.map((item) => {
                 const Icon = item.icon;
@@ -347,9 +369,36 @@ export function TrainerShell(props: { children: ReactNode }) {
             </div>
           </div> : null}
 
+          {isPromoter ? (
+            <div className="mb-4">
+              <div className="space-y-1">
+                {promoterNav.map((item) => {
+                  const Icon = item.icon;
+                  const active = item.href === activeHref;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={collapsed ? item.label : undefined}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                        active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                        collapsed && 'justify-center px-2',
+                      )}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                      {!collapsed && active ? <ChevronRight className="w-4 h-4 ml-auto text-sidebar-primary" /> : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           {isAdmin ? (
             <div className="mb-4">
-              {!collapsed ? <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Админка</div> : null}
               <div className="space-y-1">
                 {adminNav.map((item) => {
                   const Icon = item.icon;
@@ -406,7 +455,7 @@ export function TrainerShell(props: { children: ReactNode }) {
 
               <a
                 className="w-10 h-10 rounded-full bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity"
-                href={auth.status === 'authed' ? '/class-2/addition' : '/login'}
+                href={auth.status === 'authed' ? cabinetHref : '/login'}
                 title={auth.status === 'authed' ? 'Аккаунт' : 'Войти'}
               >
                 <User className="w-5 h-5 text-brand-dark-foreground" />
@@ -415,7 +464,7 @@ export function TrainerShell(props: { children: ReactNode }) {
               {auth.status === 'authed' ? (
                 <Link
                   className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
-                  href="/settings"
+                  href={settingsHref}
                   title="Настройки"
                   onClick={() => setMobileOpen(false)}
                 >
@@ -423,7 +472,7 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </Link>
               ) : null}
 
-              {auth.status === 'authed' && !isAdmin ? (
+              {auth.status === 'authed' && !isAdmin && !isPromoter ? (
                 <Link
                   className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
                   href="/billing"
@@ -434,12 +483,14 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </Link>
               ) : null}
 
-              <div className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center" title={`Кристаллы: ${totalCrystals}`}>
-                <div className="flex items-center gap-1 text-xs font-semibold text-sidebar-foreground">
-                  <Gem className="w-4 h-4 text-brand" />
-                  <span className="tabular-nums">{totalCrystals}</span>
+              {!isPromoter ? (
+                <div className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center" title={`Кристаллы: ${totalCrystals}`}>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-sidebar-foreground">
+                    <Gem className="w-4 h-4 text-brand" />
+                    <span className="tabular-nums">{totalCrystals}</span>
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           ) : (
             <>
@@ -449,19 +500,28 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-sidebar-foreground truncate">
-                    {auth.status === 'authed' ? auth.user.email || auth.user.id : auth.status === 'loading' ? 'Загрузка…' : 'Гость'}
+                    {auth.status === 'authed'
+                      ? (auth.user.displayName || '').trim() || auth.user.email || auth.user.id
+                      : auth.status === 'loading'
+                        ? 'Загрузка…'
+                        : 'Гость'}
                   </p>
                   {auth.status === 'authed' ? (
                     <div className="flex items-center gap-2">
-                      <p className="text-xs text-muted-foreground truncate">{auth.user.role || 'user'}</p>
-                      <div className="ml-auto inline-flex items-center gap-1 rounded-full bg-sidebar-accent px-2 py-0.5 text-xs font-semibold text-sidebar-foreground" title="Кристаллы">
-                        <Gem className="w-3.5 h-3.5 text-brand" />
-                        <span className="tabular-nums">{totalCrystals}</span>
-                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{roleRu(auth.user.role)}</p>
+                      {!isPromoter ? (
+                        <div className="ml-auto inline-flex items-center gap-1 rounded-full bg-sidebar-accent px-2 py-0.5 text-xs font-semibold text-sidebar-foreground" title="Кристаллы">
+                          <Gem className="w-3.5 h-3.5 text-brand" />
+                          <span className="tabular-nums">{totalCrystals}</span>
+                        </div>
+                      ) : null}
                       <button
                         type="button"
                         onClick={doLogout}
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        className={cn(
+                          'inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors',
+                          isPromoter && 'ml-auto',
+                        )}
                         title="Выйти"
                       >
                         <LogOut className="w-3.5 h-3.5" />
@@ -506,7 +566,7 @@ export function TrainerShell(props: { children: ReactNode }) {
 
               {auth.status === 'authed' ? (
                 <Link
-                  href="/settings"
+                  href={settingsHref}
                   onClick={() => setMobileOpen(false)}
                   className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors text-sm text-muted-foreground hover:text-foreground"
                 >
@@ -515,7 +575,7 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </Link>
               ) : null}
 
-              {auth.status === 'authed' && !isAdmin ? (
+              {auth.status === 'authed' && !isAdmin && !isPromoter ? (
                 <Link
                   href="/billing"
                   onClick={() => setMobileOpen(false)}

@@ -5,6 +5,7 @@ import { TrainerResultCard } from './TrainerResultCard';
 
 export function TrainerResultScreen(props: {
   title: string;
+  presetId: string;
   presetTitle: string;
   result: SessionResult;
   canGoNext: boolean;

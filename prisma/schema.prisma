@@ -11,6 +11,7 @@ enum Role {
   parent
   student
   admin
+  promoter
 }
 
 enum BillingSubscriptionStatus {
@@ -27,6 +28,7 @@ model User {
   passwordHash String
   role         Role     @default(student)
   emailVerifiedAt DateTime?
+  maxUserId    String?  @unique
   trialEndsAt  DateTime?
   billingStatus BillingSubscriptionStatus @default(none)
   paidUntil    DateTime?
@@ -43,6 +45,38 @@ model User {
   trainerAttempts TrainerAttempt[]
   achievements UserAchievement[]
   stats UserStats?
+
+  promoterProfile Promoter?
+  referralAttribution ReferralAttribution?
+}
+
+model Promoter {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  code        String   @unique
+  displayName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referrals ReferralAttribution[]
+}
+
+model ReferralAttribution {
+  id           String   @id @default(cuid())
+  promoterId   String
+  userId       String   @unique
+  attributedAt DateTime @default(now())
+  firstPaidAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  promoter Promoter @relation(fields: [promoterId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([promoterId])
+  @@index([attributedAt])
+  @@index([firstPaidAt])
 }
 
 model Session {

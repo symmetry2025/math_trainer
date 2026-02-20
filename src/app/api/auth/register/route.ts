@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 
@@ -6,6 +7,15 @@ import { prisma } from '../../../../lib/db';
 import { hashToken } from '../../../../lib/auth';
 import { renderBasicEmail } from '../../../../lib/mailTemplates';
 import { sendMail } from '../../../../lib/mail';
+
+const REF_COOKIE = process.env.REF_COOKIE_NAME || 'smmtry_ref';
+
+function normalizeRefCode(v: unknown): string {
+  const s = typeof v === 'string' ? v.trim() : '';
+  if (!s) return '';
+  if (!/^[a-zA-Z0-9_-]{2,64}$/.test(s)) return '';
+  return s;
+}
 
 function webBaseUrl(req: Request): string {
   const env = (process.env.WEB_BASE_URL ?? '').trim();
@@ -35,11 +45,23 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 10);
   const now = new Date();
+  const refCode = normalizeRefCode(cookies().get(REF_COOKIE)?.value);
   const user = await prisma.user.create({
     // Trial should start from the first successful login, not from registration.
     data: { email, passwordHash, role: 'student', emailVerifiedAt: null },
     select: { id: true, email: true },
   });
+
+  if (refCode) {
+    const promoter = await prisma.promoter.findUnique({ where: { code: refCode }, select: { id: true } });
+    if (promoter) {
+      await prisma.referralAttribution
+        .create({
+          data: { promoterId: promoter.id, userId: user.id },
+        })
+        .catch(() => undefined);
+    }
+  }
 
   // Create a one-time email confirmation token.
   const token = randomBytes(32).toString('base64url');

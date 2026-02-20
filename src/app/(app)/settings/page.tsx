@@ -8,6 +8,7 @@ type Me = {
   id: string;
   email: string;
   displayName?: string | null;
+  role?: 'student' | 'parent' | 'admin' | 'promoter' | string | null;
 };
 
 type BillingDto = {
@@ -115,6 +116,7 @@ export default function SettingsPage() {
   const [billingActivatedOpen, setBillingActivatedOpen] = useState(false);
   const [billingPendingActivationNotice, setBillingPendingActivationNotice] = useState(false);
   const [billingShowActivatedWhenWidgetClosed, setBillingShowActivatedWhenWidgetClosed] = useState(false);
+  const isPromoter = me?.role === 'promoter';
 
   const refreshBilling = async (): Promise<BillingDto | null> => {
     const res = await fetch('/api/billing/status', { method: 'GET', credentials: 'include', cache: 'no-store' });
@@ -202,8 +204,8 @@ export default function SettingsPage() {
         setMe(u);
         setDisplayName(String(u?.displayName ?? '').trim());
         setNewEmail(String(u?.email ?? '').trim());
-        // Best-effort load billing info for the banner.
-        await refreshBilling();
+        // Best-effort load billing info for the banner (not needed for promoters).
+        if (u?.role !== 'promoter') await refreshBilling();
       } catch {
         if (cancelled) return;
         setError('Ошибка сети');
@@ -263,6 +265,7 @@ export default function SettingsPage() {
   useEffect(() => {
     // Lazy-load CloudPayments widget script (only for logged-in users).
     if (!me?.id) return;
+    if (me?.role === 'promoter') return;
     const id = 'cp-widget';
     if (document.getElementById(id)) return;
     const s = document.createElement('script');
@@ -400,7 +403,7 @@ export default function SettingsPage() {
         {error ? <div className="card-elevated p-4 text-sm text-destructive">{error}</div> : null}
 
         {/* Billing / Trial banner (requested as first section) */}
-        {me ? (
+        {me && !isPromoter ? (
           <div className="card-elevated p-6 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -467,14 +470,16 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
-        <SubscriptionActivatedModal
-          open={billingActivatedOpen}
-          paidUntil={billing?.paidUntil ?? null}
-          onClose={async () => {
-            setBillingActivatedOpen(false);
-            await refreshBilling();
-          }}
-        />
+        {!isPromoter ? (
+          <SubscriptionActivatedModal
+            open={billingActivatedOpen}
+            paidUntil={billing?.paidUntil ?? null}
+            onClose={async () => {
+              setBillingActivatedOpen(false);
+              await refreshBilling();
+            }}
+          />
+        ) : null}
 
         <div className="card-elevated p-6 space-y-4">
           <h2 className="text-lg font-bold">Имя</h2>

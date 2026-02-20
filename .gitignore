@@ -4,6 +4,9 @@ dist/
 .env
 .DS_Store
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Prisma
 prisma/dev.db
 prisma/dev.db-journal

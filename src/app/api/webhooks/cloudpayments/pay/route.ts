@@ -12,6 +12,13 @@ function addOneMonthUtc(d: Date): Date {
   return x;
 }
 
+async function markReferralFirstPaid(userId: string, now: Date): Promise<void> {
+  await prisma.referralAttribution.updateMany({
+    where: { userId, firstPaidAt: null },
+    data: { firstPaidAt: now },
+  });
+}
+
 export async function POST(req: Request) {
   const rawBody = await req.text();
   const contentType = req.headers.get('content-type');
@@ -90,6 +97,7 @@ export async function POST(req: Request) {
         ...(cardMask ? { cpCardMask: cardMask } : {}),
       },
     });
+    await markReferralFirstPaid(user.id, now);
     // eslint-disable-next-line no-console
     console.log('[cp/webhook/pay] updated (extend)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
     return NextResponse.json({ code: 0 }, { status: 200 });
@@ -101,6 +109,7 @@ export async function POST(req: Request) {
       where: { id: user.id },
       data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, ...(cardMask ? { cpCardMask: cardMask } : {}) },
     });
+    await markReferralFirstPaid(user.id, now);
     // eslint-disable-next-line no-console
     console.log('[cp/webhook/pay] updated (no token)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
     return NextResponse.json({ code: 0 }, { status: 200 });
@@ -134,6 +143,7 @@ export async function POST(req: Request) {
         ...(cardMask ? { cpCardMask: cardMask } : {}),
       },
     });
+    await markReferralFirstPaid(user.id, now);
     // eslint-disable-next-line no-console
     console.log('[cp/webhook/pay] updated (subscription created)', {
       accountId: user.id,
@@ -148,6 +158,7 @@ export async function POST(req: Request) {
       where: { id: user.id },
       data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, cpToken: token, ...(cardMask ? { cpCardMask: cardMask } : {}) },
     });
+    await markReferralFirstPaid(user.id, now);
     // eslint-disable-next-line no-console
     console.log('[cp/webhook/pay] updated (subscription create failed)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
   }

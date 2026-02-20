@@ -233,6 +233,22 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
       setProgress(nextProgress);
       setNewlyUnlockedAchievements(outcome.newlyUnlockedAchievements ?? []);
 
+      const presetId = String(config.presetId || '');
+      const shouldShowCrystals = presetId === 'accuracy' || presetId === 'accuracy-input' || presetId === 'speed';
+      const earnedCrystals = (() => {
+        if (!shouldShowCrystals) return undefined;
+        try {
+          const before = prevProgress as any;
+          const after = nextProgress as any;
+          if (presetId === 'accuracy-input') return !before?.['accuracy-input'] && !!after?.['accuracy-input'] ? 10 : 0;
+          if (presetId === 'accuracy') return !before?.accuracy && !!after?.accuracy ? 10 : 0;
+          if (presetId === 'speed') return !before?.speed && !!after?.speed ? 10 : 0;
+          return 0;
+        } catch {
+          return 0;
+        }
+      })();
+
       // Detect "new level unlocked" (compare lock state for the immediate next preset).
       let unlockedTitle: string | null = null;
       try {
@@ -260,7 +276,11 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
       }
       setUnlockedPresetTitle(unlockedTitle);
 
-      setResult(r);
+      const nextResult: SessionResult =
+        typeof earnedCrystals === 'number'
+          ? { ...r, metrics: { ...r.metrics, crystalsEarned: earnedCrystals } }
+          : r;
+      setResult(nextResult);
       const hasDbAchievements = (outcome.newlyUnlockedAchievements?.length ?? 0) > 0;
       const hasUnlockedPresetNotice = !!(r.success && unlockedTitle);
       if (hasDbAchievements || hasUnlockedPresetNotice) setStep('achievements');
@@ -639,6 +659,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
             achievements={newlyUnlockedAchievements}
             unlockedPresetTitle={unlockedTitle}
             title={definition.meta.title}
+            presetId={selectedPreset.id}
             presetTitle={selectedPreset.title}
             result={result}
             canGoNext={!!nextPresetId}
@@ -657,6 +678,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
         <div>
           <TrainerResultScreen
             title={definition.meta.title}
+            presetId={selectedPreset.id}
             presetTitle={selectedPreset.title}
             result={result}
             canGoNext={!!nextPresetId}

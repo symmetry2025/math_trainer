@@ -75,7 +75,7 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
 
           <div className="flex flex-col">
             <div className="flex items-stretch h-12">
-              <div className="w-1 bg-foreground" />
+              <div className="w-0.5 bg-foreground" />
               <div className="flex items-center px-2">
                 {divisorStr.split('').map((digit, idx) => (
                   <span key={`divisor-${idx}`} className="font-bold">
@@ -120,21 +120,27 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
             const subtractSteps = getStepsByTypeAndPosition('subtract_result', wsIdx);
 
             const rightEdgeIndex = calculateWorkingStepOffset(wsIdx);
+            const currentDigits = ws.currentNumber.toString().length;
+            const chunkStartIndex = rightEdgeIndex - currentDigits + 1;
             const multiplyDigits = ws.multiplyResult.toString().length;
             const subtractDigits = ws.subtractResult.toString().length;
 
             const multiplyOffset = (rightEdgeIndex - multiplyDigits + 1) * cellWidth;
             const subtractOffset = (rightEdgeIndex - subtractDigits + 1) * cellWidth;
+            const chunkStartOffset = chunkStartIndex * cellWidth;
+            const digitStartIndex = rightEdgeIndex - multiplyDigits + 1;
+            const gapCells = Math.max(0, digitStartIndex - chunkStartIndex - 1);
 
             const hasNextDigit = ws.broughtDown !== undefined;
 
             return (
               <div key={`working-${wsIdx}`} className="flex flex-col">
                 {quotientCompleted ? (
-                  <div className="flex items-center relative" style={{ paddingLeft: `${multiplyOffset}rem` }}>
-                    <span className="absolute text-xl text-muted-foreground" style={{ left: `${multiplyOffset - 1.2}rem` }}>
-                      −
-                    </span>
+                  <div className="flex items-center" style={{ paddingLeft: `${chunkStartOffset}rem` }}>
+                    {renderDigitCell('−', 'text-muted-foreground')}
+                    {gapCells
+                      ? Array.from({ length: gapCells }).map((_, i) => <div key={`gap-${wsIdx}-${i}`} className="w-10 h-12" />)
+                      : null}
                     {multiplySteps.map((step) => (
                       <div key={step.id}>{step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step)}</div>
                     ))}

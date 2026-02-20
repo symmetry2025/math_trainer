@@ -89,6 +89,8 @@ export function TrainerShell(props: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
   const isAdmin = auth.status === 'authed' && auth.user.role === 'admin';
   const isPromoter = auth.status === 'authed' && auth.user.role === 'promoter';
+  const isParent = auth.status === 'authed' && auth.user.role === 'parent';
+  const isStudent = auth.status === 'authed' && auth.user.role === 'student';
   const cabinetHref = isAdmin ? '/admin/users' : isPromoter ? '/promoter' : '/settings';
   const settingsHref = '/settings';
   const doLogout = async () => {
@@ -135,6 +137,34 @@ export function TrainerShell(props: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  type ParentChild = { userId: string; displayName: string | null; email: string | null };
+  const [parentChild, setParentChild] = useState<ParentChild | null>(null);
+
+  useEffect(() => {
+    if (!isParent) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/parent/children', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' } });
+        const body: any = await res.json().catch(() => null);
+        if (cancelled) return;
+        const list = Array.isArray(body?.children) ? body.children : [];
+        const first = list?.[0];
+        const next: ParentChild | null =
+          first && typeof first.userId === 'string'
+            ? { userId: String(first.userId), displayName: typeof first.displayName === 'string' ? first.displayName : null, email: typeof first.email === 'string' ? first.email : null }
+            : null;
+        setParentChild(next);
+      } catch {
+        if (cancelled) return;
+        setParentChild(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isParent]);
 
   const trainerNav = useMemo(
     () => [
@@ -183,6 +213,15 @@ export function TrainerShell(props: { children: ReactNode }) {
     [],
   );
 
+  const parentChildNav = useMemo(() => {
+    const childId = (parentChild?.userId || '').trim();
+    const q = childId ? `?childId=${encodeURIComponent(childId)}` : '';
+    return [
+      { label: 'Достижения', href: '/progress/achievements' + q, icon: Trophy },
+      { label: 'Статистика', href: '/progress/stats' + q, icon: BarChart3 },
+    ];
+  }, [parentChild?.userId]);
+
   const promoterNav = useMemo(
     () => [
       { group: 'Промоутер', label: 'Кабинет', href: '/promoter', icon: Users },
@@ -202,9 +241,12 @@ export function TrainerShell(props: { children: ReactNode }) {
 
   const activeHref = useMemo(() => {
     const hrefs: string[] = [];
-    if (!isAdmin && !isPromoter) {
+    if (!isAdmin && !isPromoter && !isParent) {
       for (const g of trainerNav) for (const i of g.items) hrefs.push(i.href);
       for (const p of progressNav) hrefs.push(p.href);
+    }
+    if (isParent) {
+      for (const p of parentChildNav) hrefs.push(p.href.split('?')[0] || p.href);
     }
     if (isPromoter) for (const p of promoterNav) hrefs.push(p.href);
     for (const a of adminNav) hrefs.push(a.href);
@@ -272,7 +314,7 @@ export function TrainerShell(props: { children: ReactNode }) {
 
         {/* Nav */}
         <nav className={cn('flex-1 px-3 pb-3', collapsed ? 'pt-1' : 'pt-2')}>
-          {!isAdmin && !isPromoter ? <div className="mb-4">
+          {!isAdmin && !isPromoter && !isParent ? <div className="mb-4">
 
             <div className="space-y-1">
               {trainerNav.map((g) => {
@@ -343,7 +385,7 @@ export function TrainerShell(props: { children: ReactNode }) {
             </div>
           </div> : null}
 
-          {!isAdmin && !isPromoter ? <div className="mb-4">
+          {!isAdmin && !isPromoter && !isParent ? <div className="mb-4">
             <div className="space-y-1">
               {progressNav.map((item) => {
                 const Icon = item.icon;
@@ -368,6 +410,44 @@ export function TrainerShell(props: { children: ReactNode }) {
               })}
             </div>
           </div> : null}
+
+          {isParent ? (
+            <div className="mb-4">
+              {!collapsed ? (
+                <div className="px-3 py-2">
+                  <div className="text-xs text-muted-foreground">Ребёнок</div>
+                  <div className="text-sm font-semibold text-sidebar-foreground truncate">
+                    {(parentChild?.displayName || '').trim() || parentChild?.email || 'Не привязан'
+                    }
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-1">
+                {parentChildNav.map((item) => {
+                  const Icon = item.icon;
+                  const active = (item.href.split('?')[0] || item.href) === activeHref;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={collapsed ? item.label : undefined}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                        active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                        collapsed && 'justify-center px-2',
+                      )}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                      {!collapsed && active ? <ChevronRight className="w-4 h-4 ml-auto text-sidebar-primary" /> : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {isPromoter ? (
             <div className="mb-4">
@@ -472,7 +552,7 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </Link>
               ) : null}
 
-              {auth.status === 'authed' && !isAdmin && !isPromoter ? (
+              {auth.status === 'authed' && !isAdmin && !isPromoter && !isStudent ? (
                 <Link
                   className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
                   href="/billing"
@@ -575,7 +655,7 @@ export function TrainerShell(props: { children: ReactNode }) {
                 </Link>
               ) : null}
 
-              {auth.status === 'authed' && !isAdmin && !isPromoter ? (
+              {auth.status === 'authed' && !isAdmin && !isPromoter && !isStudent ? (
                 <Link
                   href="/billing"
                   onClick={() => setMobileOpen(false)}

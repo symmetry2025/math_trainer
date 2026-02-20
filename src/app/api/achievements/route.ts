@@ -11,12 +11,28 @@ function asInt(x: unknown, def = 0) {
   return Number.isFinite(n) ? Math.floor(n) : def;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUserOrNull();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  const url = new URL(req.url);
+  const childId = (url.searchParams.get('childId') || '').trim();
+  const role = String(user.role || '').trim();
+  let targetUserId = user.id;
+  if (childId) {
+    if (role === 'admin') {
+      targetUserId = childId;
+    } else if (role === 'parent') {
+      const link = await prisma.parentStudentLink.findUnique({ where: { studentId: childId }, select: { parentId: true } });
+      if (!link || link.parentId !== user.id) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      targetUserId = childId;
+    } else {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+  }
+
   const rows = await prisma.userAchievement.findMany({
-    where: { userId: user.id },
+    where: { userId: targetUserId },
     select: { achievementId: true, progress: true, unlockedAt: true },
   });
   const byId: Record<string, { progress: any; unlockedAt: Date | null }> = {};

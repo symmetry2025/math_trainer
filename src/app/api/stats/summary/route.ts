@@ -111,12 +111,28 @@ async function maybeBackfillUserStats(args: { userId: string; existing: any | nu
   return next;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUserOrNull();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  const url = new URL(req.url);
+  const childId = (url.searchParams.get('childId') || '').trim();
+  const role = String(user.role || '').trim();
+  let targetUserId = user.id;
+  if (childId) {
+    if (role === 'admin') {
+      targetUserId = childId;
+    } else if (role === 'parent') {
+      const link = await prisma.parentStudentLink.findUnique({ where: { studentId: childId }, select: { parentId: true } });
+      if (!link || link.parentId !== user.id) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      targetUserId = childId;
+    } else {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    }
+  }
+
   const row0 = await prisma.userStats.findUnique({
-    where: { userId: user.id },
+    where: { userId: targetUserId },
     select: {
       totalProblems: true,
       totalCorrect: true,
@@ -127,7 +143,7 @@ export async function GET() {
       raceWinsCount: true,
     },
   });
-  const row = await maybeBackfillUserStats({ userId: user.id, existing: row0 as any });
+  const row = await maybeBackfillUserStats({ userId: targetUserId, existing: row0 as any });
 
   const totalProblems = row?.totalProblems ?? 0;
   const totalCorrect = row?.totalCorrect ?? 0;
@@ -146,7 +162,7 @@ export async function GET() {
 
   const attempts = await prisma.trainerAttempt.findMany({
     where: {
-      userId: user.id,
+      userId: targetUserId,
       createdAt: { gte: start, lt: end },
     },
     select: { createdAt: true, result: true, kind: true, level: true },

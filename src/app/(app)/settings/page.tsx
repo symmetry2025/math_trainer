@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Copy, RotateCw } from 'lucide-react';
 
 import { SubscriptionActivatedModal } from '../../../components/SubscriptionActivatedModal';
 
@@ -585,20 +586,33 @@ export default function SettingsPage() {
 
             {parentFamilyError ? <div className="text-sm text-destructive">{parentFamilyError}</div> : null}
 
-            <div className="grid gap-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  Код приглашения:{' '}
-                  <span className="font-mono font-semibold">{parentInvite?.code ? parentInvite.code : '—'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" className="btn-secondary" onClick={copyParentInvite} disabled={!parentInvite?.code}>
-                    Копировать
-                  </button>
-                  <button type="button" className="btn-secondary" onClick={regenerateParentInvite} disabled={parentFamilyBusy}>
-                    Обновить код
-                  </button>
-                </div>
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Код приглашения</div>
+              <div className="text-xs text-muted-foreground">Используйте код, чтобы привязать ребёнка к вашему кабинету</div>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={parentInvite?.code ? parentInvite.code : '—'}
+                  className="h-10 flex-1 rounded-2xl border border-input bg-background px-3 py-2 text-sm font-mono tracking-wider"
+                />
+                <button
+                  type="button"
+                  className="h-10 w-10 rounded-2xl border border-input bg-background hover:bg-muted transition-colors flex items-center justify-center disabled:opacity-60"
+                  onClick={copyParentInvite}
+                  disabled={!parentInvite?.code}
+                  title="Копировать"
+                >
+                  <Copy className="w-5 h-5 text-muted-foreground" />
+                </button>
+                <button
+                  type="button"
+                  className="h-10 w-10 rounded-2xl border border-input bg-background hover:bg-muted transition-colors flex items-center justify-center disabled:opacity-60"
+                  onClick={regenerateParentInvite}
+                  disabled={parentFamilyBusy}
+                  title="Обновить код"
+                >
+                  <RotateCw className="w-5 h-5 text-muted-foreground" />
+                </button>
               </div>
               <div className="text-xs text-muted-foreground">
                 Обновлён: <span className="font-semibold">{fmtDate(parentInvite?.updatedAt ?? null)}</span>

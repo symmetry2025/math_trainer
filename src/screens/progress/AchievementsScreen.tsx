@@ -2,6 +2,7 @@
 
 import { Medal, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { AchievementItemDto } from '@smmtry/shared';
 import { AchievementsResponseDtoSchema } from '@smmtry/shared';
 
@@ -20,6 +21,8 @@ function iconClassFor(iconKey: string) {
 }
 
 export default function AchievementsScreen() {
+  const sp = useSearchParams();
+  const childId = (sp?.get('childId') || '').trim();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [achievements, setAchievements] = useState<AchievementItemDto[]>([]);
@@ -30,7 +33,8 @@ export default function AchievementsScreen() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/achievements', { method: 'GET', credentials: 'include', headers: { accept: 'application/json' } });
+        const url = childId ? `/api/achievements?childId=${encodeURIComponent(childId)}` : '/api/achievements';
+        const res = await fetch(url, { method: 'GET', credentials: 'include', headers: { accept: 'application/json' } });
         const json: any = await res.json().catch(() => null);
         const parsed = AchievementsResponseDtoSchema.safeParse(json);
         if (!parsed.success) throw new Error('invalid_response');
@@ -47,7 +51,7 @@ export default function AchievementsScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [childId]);
 
   const unlockedCount = useMemo(() => achievements.filter((a) => !!a.unlockedAt).length, [achievements]);
 

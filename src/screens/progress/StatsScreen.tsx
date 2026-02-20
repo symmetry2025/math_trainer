@@ -2,9 +2,12 @@
 
 import { BarChart3, Calendar, Clock, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { StatsSummaryDtoSchema, type StatsSummaryDto } from '@smmtry/shared';
 
 export default function StatsScreen() {
+  const sp = useSearchParams();
+  const childId = (sp?.get('childId') || '').trim();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<StatsSummaryDto | null>(null);
@@ -15,7 +18,8 @@ export default function StatsScreen() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/stats/summary', { method: 'GET', credentials: 'include', headers: { accept: 'application/json' } });
+        const url = childId ? `/api/stats/summary?childId=${encodeURIComponent(childId)}` : '/api/stats/summary';
+        const res = await fetch(url, { method: 'GET', credentials: 'include', headers: { accept: 'application/json' } });
         const json: any = await res.json().catch(() => null);
         const parsed = StatsSummaryDtoSchema.safeParse(json);
         if (!parsed.success) throw new Error('invalid_response');
@@ -32,7 +36,7 @@ export default function StatsScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [childId]);
 
   const totalProblems = summary?.totalProblems ?? 0;
   const accuracyPct = summary ? Math.round(summary.accuracyPct) : 0;

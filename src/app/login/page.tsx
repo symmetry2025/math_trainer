@@ -18,7 +18,14 @@ export default async function LoginPage(props: { searchParams?: Record<string, s
   if (user) {
     const nextRaw = props.searchParams?.next;
     const next = Array.isArray(nextRaw) ? nextRaw[0] : nextRaw;
-    const fallback = user.role === 'promoter' ? '/promoter' : '/settings';
+    const fallback =
+      user.role === 'admin'
+        ? '/admin/users'
+        : user.role === 'promoter'
+          ? '/promoter'
+          : user.role === 'parent'
+            ? '/progress/stats'
+            : '/settings';
     redirect(safeNextPath(next) ?? fallback);
   }
   return (

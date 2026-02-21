@@ -20,7 +20,14 @@ function friendlyAuthError(code: unknown): string {
 export default function LoginClient() {
   const goNextByRole = (roleRaw: unknown) => {
     const role = typeof roleRaw === 'string' ? roleRaw : '';
-    const href = role === 'admin' ? '/admin/users' : '/class-2/addition';
+    const href =
+      role === 'admin'
+        ? '/admin/users'
+        : role === 'promoter'
+          ? '/promoter'
+          : role === 'parent'
+            ? '/progress/stats'
+            : '/class-2/addition';
     // Ensure middleware sees the fresh session cookie (hard navigation).
     window.location.assign(href);
   };

@@ -8,6 +8,8 @@ export default async function Class4Layout(props: { children: ReactNode }) {
   const me = await getCurrentUserOrNull();
   if (!me) redirect('/login');
 
+  if (me.role === 'parent') redirect('/progress/stats');
+
   const eff = await getEffectiveBillingAccessByUserId(me.id);
   if (!eff.access.ok) redirect(me.role === 'student' ? '/settings' : '/billing');
   return props.children;

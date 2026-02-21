@@ -2,15 +2,48 @@
 
 import { BarChart3, Calendar, Clock, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { StatsSummaryDtoSchema, type StatsSummaryDto } from '@smmtry/shared';
 
 export default function StatsScreen() {
+  const router = useRouter();
   const sp = useSearchParams();
   const childId = (sp?.get('childId') || '').trim();
+  const [childLabel, setChildLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<StatsSummaryDto | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/parent/children', { method: 'GET', credentials: 'include', cache: 'no-store', headers: { accept: 'application/json' } });
+        const body: any = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (!res.ok) {
+          setChildLabel(null);
+          return;
+        }
+        const list: any[] = Array.isArray(body?.children) ? body.children : [];
+        if (!list.length) {
+          setChildLabel('Нет привязанных детей');
+          return;
+        }
+        const selected = childId ? list.find((c) => String(c?.userId || '') === childId) : list[0];
+        const id = String(selected?.userId || '').trim();
+        const label = (String(selected?.displayName || '').trim() || String(selected?.email || '').trim() || id || '').trim();
+        setChildLabel(label || null);
+        if (!childId && id) router.replace(`/progress/stats?childId=${encodeURIComponent(id)}`);
+      } catch {
+        if (cancelled) return;
+        setChildLabel(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [childId, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +87,7 @@ export default function StatsScreen() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Статистика</h1>
-            <p className="text-muted-foreground">Отслеживай свой прогресс и улучшай результаты</p>
+            <p className="text-muted-foreground">{childLabel ? childLabel : 'Отслеживай свой прогресс и улучшай результаты'}</p>
           </div>
         </div>
 

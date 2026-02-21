@@ -129,6 +129,14 @@ export async function GET(req: Request) {
     } else {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
+  } else if (role === 'parent') {
+    const first = await prisma.parentStudentLink.findFirst({
+      where: { parentId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: { studentId: true },
+    });
+    if (!first?.studentId) return NextResponse.json({ error: 'no_children' }, { status: 404 });
+    targetUserId = first.studentId;
   }
 
   const row0 = await prisma.userStats.findUnique({

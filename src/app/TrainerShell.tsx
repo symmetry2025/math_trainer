@@ -55,6 +55,7 @@ export function TrainerShell(props: { children: ReactNode }) {
   const pathname = usePathname() || '/';
   const { totalCrystals } = useCrystals();
 
+  const [isDesktop, setIsDesktop] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -82,8 +83,30 @@ export function TrainerShell(props: { children: ReactNode }) {
       // ignore
     }
 
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const applyDesktop = () => {
+      const desktop = !!mq.matches;
+      setIsDesktop(desktop);
+      if (!desktop) setCollapsed(false);
+    };
+    applyDesktop();
+
+    try {
+      mq.addEventListener('change', applyDesktop);
+    } catch {
+      // ignore
+    }
+
     const c = getInitialCollapsed();
-    setCollapsed(c);
+    setCollapsed(mq.matches ? c : false);
+
+    return () => {
+      try {
+        mq.removeEventListener('change', applyDesktop);
+      } catch {
+        // ignore
+      }
+    };
   }, []);
 
   const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
@@ -270,6 +293,7 @@ export function TrainerShell(props: { children: ReactNode }) {
   }, [pathname]);
 
   const setCollapsedAndPersist = (next: boolean) => {
+    if (!isDesktop) return;
     setCollapsed(next);
     try {
       window.localStorage.setItem('smmtry_trainer_sidebar', next ? 'collapsed' : 'expanded');
@@ -284,19 +308,19 @@ export function TrainerShell(props: { children: ReactNode }) {
       style={
         {
           // Used by CenteredOverlay to center "Saving..." relative to the working area (excluding sidebar on md+).
-          '--smmtry-sidebar-w': collapsed ? '4rem' : '16rem',
+          '--smmtry-sidebar-w': isDesktop ? (collapsed ? '4rem' : '16rem') : '0rem',
         } as any
       }
     >
       {/* Mobile overlay */}
-      {mobileOpen ? <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" onClick={() => setMobileOpen(false)} /> : null}
+      {mobileOpen ? <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} /> : null}
 
       <aside
         className={cn(
           'z-50 flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200',
-          'fixed inset-y-0 left-0 md:sticky md:top-0 md:h-screen overflow-y-auto',
-          collapsed ? 'w-16' : 'w-64',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+          'fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen overflow-y-auto',
+          isDesktop && collapsed ? 'w-16' : 'w-64',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         {/* Brand */}
@@ -615,14 +639,16 @@ export function TrainerShell(props: { children: ReactNode }) {
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setCollapsedAndPersist(true)}
-                  className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
-                  aria-label="Свернуть меню"
-                >
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                </button>
+                {isDesktop ? (
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedAndPersist(true)}
+                    className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
+                    aria-label="Свернуть меню"
+                  >
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                ) : null}
               </div>
 
               <button
@@ -673,7 +699,7 @@ export function TrainerShell(props: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Mobile header */}
         {!hideMobileHeader ? (
-          <header className="h-14 flex items-center border-b border-border px-4 md:hidden bg-card">
+          <header className="h-14 flex items-center border-b border-border px-4 lg:hidden bg-card sticky top-0 z-40">
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
@@ -687,8 +713,8 @@ export function TrainerShell(props: { children: ReactNode }) {
         ) : null}
 
         {/* Desktop trigger (expand when collapsed) */}
-        {collapsed ? (
-          <div className="hidden md:flex absolute top-3 left-4 z-40 items-center gap-2">
+        {collapsed && isDesktop ? (
+          <div className="hidden lg:flex absolute top-3 left-4 z-40 items-center gap-2">
             <button
               type="button"
               onClick={() => setCollapsedAndPersist(false)}

@@ -227,7 +227,7 @@ export async function POST(req: Request) {
   const access = info
     ? hasBillingAccess({ role: info.role, trialEndsAt: info.trialEndsAt, billingStatus: info.billingStatus, paidUntil: info.paidUntil })
     : { ok: false as const, reason: 'none' as const };
-  const redirectTo = access.ok ? '/class-2/addition' : '/billing';
+  const redirectTo = access.ok ? (info?.role === 'parent' ? '/progress/stats' : '/class-2/addition') : '/billing';
 
   const res = NextResponse.json({ ok: true, redirectTo, access, startParam: startParamRaw || v.parsed.startParam || null });
   res.cookies.set(AUTH_COOKIE_NAME, token, {

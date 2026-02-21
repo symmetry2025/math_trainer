@@ -518,8 +518,8 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                 </>
                               )}
 
-                              {/* Keep progress bar only for non-speed modes to save vertical space */}
-                              {typeof sessionMetrics.progressPct === 'number' && !isSpeedOrTimed ? (
+                              {/* Keep progress bar only for non-speed non-race modes to save vertical space */}
+                              {typeof sessionMetrics.progressPct === 'number' && !isSpeedOrTimed && !isRace ? (
                                 <div className="progress-bar">
                                   <div
                                     className="progress-bar-fill"
@@ -544,6 +544,22 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                 </div>
                               ) : null}
 
+                              {(() => {
+                                const pctRaw =
+                                  typeof sessionMetrics.progressPct === 'number'
+                                    ? sessionMetrics.progressPct
+                                    : counter && Number(counter.total) > 0
+                                      ? (Number(counter.current || 0) / Number(counter.total || 1)) * 100
+                                      : null;
+                                const pct = typeof pctRaw === 'number' && Number.isFinite(pctRaw) ? Math.max(0, Math.min(100, Math.round(pctRaw))) : null;
+                                if (typeof pct !== 'number') return null;
+                                return (
+                                  <div className="progress-bar">
+                                    <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+                                  </div>
+                                );
+                              })()}
+
                               {opponentText ? <div className="text-center text-sm text-muted-foreground">Соперник: {String(opponentText.value || '').trim()}</div> : null}
 
                               {typeof sessionMetrics.opponentProgressPct === 'number' ? (
@@ -555,7 +571,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                           ) : null}
 
                           {/* Desktop / non-mobile layout (original) */}
-                          <div className={cn('hidden md:flex items-center justify-between gap-4 flex-wrap', !canShowMobile && 'flex')}>
+                          <div className="hidden md:flex items-center justify-between gap-4 flex-wrap">
                             {main.map((b, idx) => {
                       if (b.kind === 'counter') {
                         return (

@@ -64,8 +64,8 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
   };
 
   return (
-    <div className="card-elevated py-6 px-8 md:py-8 md:px-10 inline-flex w-fit min-h-[248px] sm:min-h-[280px] items-center justify-center">
-      <div className="flex flex-col justify-center text-2xl">
+    <div className="card-elevated py-6 px-8 md:py-8 md:px-10 inline-flex w-fit min-h-[248px] sm:min-h-[280px] items-start justify-center">
+      <div className="flex flex-col justify-start text-2xl">
         <div className="flex items-stretch">
           <div className="flex">
             {dividendStr.split('').map((digit, idx) => (
@@ -109,7 +109,7 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
           </div>
         </div>
 
-        <div className="flex flex-col mt-2">
+        <div className="flex flex-col mt-0.5">
           {workingSteps.map((ws, wsIdx) => {
             if (wsIdx > state.currentWorkingStep) return null;
 

@@ -493,7 +493,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                           <div className="stats-badge">
                                             <Hash className="w-4 h-4" />
                                             <span>
-                                              Прогресс: {counter.current}/{counter.total}
+                                              Решено: {counter.current}/{counter.total}
                                             </span>
                                           </div>
                                         </div>
@@ -518,8 +518,8 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                 </>
                               )}
 
-                              {/* Keep progress bar only for non-speed non-race modes to save vertical space */}
-                              {typeof sessionMetrics.progressPct === 'number' && !isSpeedOrTimed && !isRace ? (
+                              {/* Keep progress bar only for non-speed modes to save vertical space */}
+                              {typeof sessionMetrics.progressPct === 'number' && !isSpeedOrTimed ? (
                                 <div className="progress-bar">
                                   <div
                                     className="progress-bar-fill"
@@ -538,27 +538,11 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                                   <div className="stats-badge">
                                     <Hash className="w-4 h-4" />
                                     <span>
-                                      Твой прогресс: {counter.current}/{counter.total}
+                                      Решено: {counter.current}/{counter.total}
                                     </span>
                                   </div>
                                 </div>
                               ) : null}
-
-                              {(() => {
-                                const pctRaw =
-                                  typeof sessionMetrics.progressPct === 'number'
-                                    ? sessionMetrics.progressPct
-                                    : counter && Number(counter.total) > 0
-                                      ? (Number(counter.current || 0) / Number(counter.total || 1)) * 100
-                                      : null;
-                                const pct = typeof pctRaw === 'number' && Number.isFinite(pctRaw) ? Math.max(0, Math.min(100, Math.round(pctRaw))) : null;
-                                if (typeof pct !== 'number') return null;
-                                return (
-                                  <div className="progress-bar">
-                                    <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
-                                  </div>
-                                );
-                              })()}
 
                               {opponentText ? <div className="text-center text-sm text-muted-foreground">Соперник: {String(opponentText.value || '').trim()}</div> : null}
 
@@ -571,7 +555,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
                           ) : null}
 
                           {/* Desktop / non-mobile layout (original) */}
-                          <div className="hidden md:flex items-center justify-between gap-4 flex-wrap">
+                          <div className={cn('hidden md:flex items-center justify-between gap-4 flex-wrap', !canShowMobile && 'flex')}>
                             {main.map((b, idx) => {
                       if (b.kind === 'counter') {
                         return (

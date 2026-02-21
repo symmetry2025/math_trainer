@@ -9,7 +9,12 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
   const divisorStr = problem.divisor.toString();
   const quotientStr = problem.quotient.toString();
 
-  const cellWidth = 2.5; // rem
+  // Visual grid geometry (rem)
+  const cellWidth = 2.4; // slightly tighter horizontal spacing
+  const sepWidth = 0.6; // spacing for vertical bar column
+  const cellH = 2.5; // row height (matches h-10)
+  const cellHeightClass = 'h-10';
+  const cellTextClass = 'text-2xl font-bold leading-none';
 
   const getInputValue = (stepId: string): number | null => {
     return userInputs.get(stepId) ?? null;
@@ -31,10 +36,10 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
     return (
       <div
         className={cn(
-          'w-10 h-12 flex items-center justify-center text-2xl font-bold rounded-lg border-2 transition-all',
-          completed && 'bg-success/20 border-success text-success',
+          'w-full h-full flex items-center justify-center text-2xl font-bold leading-none rounded-lg border-2 transition-all',
+          completed && 'bg-muted/30 border-muted-foreground/20 text-foreground',
           active && !completed && 'bg-primary/20 border-primary animate-pulse',
-          !active && !completed && 'bg-muted/50 border-transparent',
+          !active && !completed && 'bg-muted/30 border-transparent',
           className,
         )}
       >
@@ -43,8 +48,8 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
     );
   };
 
-  const renderDigitCell = (digit: string | number, className?: string) => (
-    <div className={cn('w-10 h-12 flex items-center justify-center text-2xl font-bold', className)}>{digit}</div>
+  const renderDigitCell = (digit: string | number | null | undefined, className?: string) => (
+    <span className={cn(className)}>{digit ?? ''}</span>
   );
 
   const calculateWorkingStepOffset = (wsIdx: number): number => {
@@ -69,11 +74,18 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
   const totalCols = colsLeft + 1 + colsRight;
 
   const emptyRow = () => Array.from({ length: totalCols }, () => null as any);
-  const rows: { cells: any[]; topLineFromCol?: number }[] = [];
+  const rows: { cells: any[] }[] = [];
   const ensureRow = (idx: number) => {
     while (rows.length <= idx) rows.push({ cells: emptyRow() });
     return rows[idx];
   };
+
+  const vLineX = colsLeft * cellWidth + sepWidth / 2;
+  const rightEndX = colsLeft * cellWidth + sepWidth + colsRight * cellWidth;
+
+  const hLines: { topRow: number; leftRem: number; widthRem: number }[] = [];
+  // Top line (above quotient row)
+  hLines.push({ topRow: 1, leftRem: vLineX, widthRem: Math.max(0, rightEndX - vLineX) });
 
   // Row 0: dividend | divisor
   {
@@ -81,37 +93,20 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
     dividendStr.split('').forEach((digit, idx) => {
       r0.cells[idx] = renderDigitCell(digit);
     });
-    r0.cells[sepCol] = (
-      <div className="w-10 h-12 flex items-center justify-center">
-        <div className="w-0.5 h-full bg-foreground" />
-      </div>
-    );
+    r0.cells[sepCol] = null;
     divisorStr.split('').forEach((digit, idx) => {
       r0.cells[sepCol + 1 + idx] = renderDigitCell(digit);
     });
   }
 
-  // Row 1: quotient row (right, with top bar) + first subtraction (left)
+  // Row 1: quotient row (right) + first subtraction (left; wsIdx=0)
   {
     const r1 = ensureRow(1);
-    r1.topLineFromCol = sepCol;
     quotientStr.split('').forEach((_, idx) => {
-      const quotientSteps = getStepsByTypeAndPosition('quotient_digit', idx);
-      const step = quotientSteps[0];
-      r1.cells[sepCol + 1 + idx] =
-        step && !step.isCompleted ? (
-          renderInputCell(step)
-        ) : (
-          <div className={cn('w-10 h-12 flex items-center justify-center font-bold', step?.isCompleted && 'text-success')}>{quotientDigits[idx] ?? ''}</div>
-        );
+      const step = getStepsByTypeAndPosition('quotient_digit', idx)[0];
+      r1.cells[sepCol + 1 + idx] = step && !step.isCompleted ? renderInputCell(step) : renderDigitCell(quotientDigits[idx] ?? '');
     });
-
-    // keep the vertical bar visible in the quotient row too
-    r1.cells[sepCol] = (
-      <div className="w-10 h-12 flex items-center justify-center">
-        <div className="w-0.5 h-full bg-foreground" />
-      </div>
-    );
+    r1.cells[sepCol] = null;
   }
 
   let nextRow = 2;
@@ -137,33 +132,29 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
     if (quotientCompleted) {
       multiplyRow.cells[minusCol] = renderDigitCell('−', 'text-muted-foreground');
       multiplySteps.forEach((step, i) => {
-        multiplyRow.cells[multiplyStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step);
+        multiplyRow.cells[multiplyStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '') : renderInputCell(step);
       });
     }
 
     const multiplyDone = multiplySteps.length > 0 && multiplySteps.every((s) => s.isCompleted);
     if (multiplyDone) {
-      const lineRowIdx = multiplyRowIdx + 1;
-      const subRowIdx = multiplyRowIdx + 2;
-      const lineRow = ensureRow(lineRowIdx);
+      const subRowIdx = multiplyRowIdx + 1;
       const subRow = ensureRow(subRowIdx);
 
-      for (let c = multiplyStartCol; c < multiplyStartCol + multiplyDigits; c++) {
-        lineRow.cells[c] = <div className="h-0.5 bg-foreground w-full" />;
-      }
+      const hasNextDigit = ws.broughtDown !== undefined;
+      const endCol = hasNextDigit ? broughtDownCol : multiplyStartCol + multiplyDigits - 1;
+      hLines.push({ topRow: subRowIdx, leftRem: multiplyStartCol * cellWidth, widthRem: Math.max(0, (endCol - multiplyStartCol + 1) * cellWidth) });
 
       subtractSteps.forEach((step, i) => {
-        subRow.cells[subtractStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step);
+        subRow.cells[subtractStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '') : renderInputCell(step);
       });
 
-      const hasNextDigit = ws.broughtDown !== undefined;
       const subtractDone = subtractSteps.length > 0 && subtractSteps.every((s) => s.isCompleted);
       if (hasNextDigit && subtractDone && broughtDownCol >= 0) {
-        subRow.cells[broughtDownCol] = <div className="w-10 h-12 flex items-center justify-center font-bold text-primary">{ws.broughtDown}</div>;
+        subRow.cells[broughtDownCol] = renderDigitCell(ws.broughtDown ?? '');
       }
 
-      if (wsIdx > 0) nextRow = subRowIdx + 1;
-      if (wsIdx === 0) nextRow = Math.max(nextRow, subRowIdx + 1);
+      nextRow = subRowIdx + 1;
     } else if (wsIdx > 0) {
       nextRow = Math.max(nextRow, multiplyRowIdx + 1);
     }
@@ -171,20 +162,33 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
 
   return (
     <div className="card-elevated py-6 px-8 md:py-8 md:px-10 inline-flex w-fit min-h-[248px] sm:min-h-[280px] items-start justify-center">
-      <div className="grid" style={{ gridTemplateColumns: `repeat(${totalCols}, ${cellWidth}rem)` }}>
-        {rows.map((r, rowIdx) =>
-          r.cells.map((node, colIdx) => (
-            <div
-              key={`r${rowIdx}-c${colIdx}`}
-              className={cn(
-                'w-10 h-12 flex items-center justify-center',
-                r.topLineFromCol !== undefined && colIdx >= r.topLineFromCol ? 'border-t-2 border-foreground' : null,
-              )}
-            >
-              {node}
-            </div>
-          )),
-        )}
+      <div className="relative">
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(${colsLeft}, ${cellWidth}rem) ${sepWidth}rem repeat(${colsRight}, ${cellWidth}rem)`,
+          }}
+        >
+          {rows.map((r, rowIdx) =>
+            r.cells.map((node, colIdx) => (
+              <div key={`r${rowIdx}-c${colIdx}`} className={cn('w-full flex items-center justify-center', cellHeightClass, cellTextClass)}>
+                {node}
+              </div>
+            )),
+          )}
+        </div>
+
+        {/* Vertical bar: stop after quotient row */}
+        <div className="absolute top-0 w-0.5 bg-foreground" style={{ left: `${vLineX}rem`, height: `${2 * cellH}rem` }} />
+
+        {/* Horizontal separators (absolute; do not take matrix rows) */}
+        {hLines.map((l, idx) => (
+          <div
+            key={`h-${idx}`}
+            className="absolute h-0.5 bg-foreground"
+            style={{ top: `${l.topRow * cellH}rem`, left: `${l.leftRem}rem`, width: `${Math.max(0, l.widthRem)}rem` }}
+          />
+        ))}
       </div>
     </div>
   );

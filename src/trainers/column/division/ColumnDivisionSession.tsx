@@ -198,7 +198,7 @@ export default function ColumnDivisionSession({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full">
               <span className="text-sm font-medium text-muted-foreground">
-                Примеров: {solvedProblems}/{totalProblems}
+                Решено: {solvedProblems}/{totalProblems}
               </span>
             </div>
 

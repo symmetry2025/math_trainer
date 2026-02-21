@@ -63,108 +63,128 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
     return dividendIndex - 1;
   };
 
+  const colsLeft = dividendStr.length;
+  const sepCol = colsLeft;
+  const colsRight = Math.max(divisorStr.length, quotientStr.length);
+  const totalCols = colsLeft + 1 + colsRight;
+
+  const emptyRow = () => Array.from({ length: totalCols }, () => null as any);
+  const rows: { cells: any[]; topLineFromCol?: number }[] = [];
+  const ensureRow = (idx: number) => {
+    while (rows.length <= idx) rows.push({ cells: emptyRow() });
+    return rows[idx];
+  };
+
+  // Row 0: dividend | divisor
+  {
+    const r0 = ensureRow(0);
+    dividendStr.split('').forEach((digit, idx) => {
+      r0.cells[idx] = renderDigitCell(digit);
+    });
+    r0.cells[sepCol] = (
+      <div className="w-10 h-12 flex items-center justify-center">
+        <div className="w-0.5 h-full bg-foreground" />
+      </div>
+    );
+    divisorStr.split('').forEach((digit, idx) => {
+      r0.cells[sepCol + 1 + idx] = renderDigitCell(digit);
+    });
+  }
+
+  // Row 1: quotient row (right, with top bar) + first subtraction (left)
+  {
+    const r1 = ensureRow(1);
+    r1.topLineFromCol = sepCol;
+    quotientStr.split('').forEach((_, idx) => {
+      const quotientSteps = getStepsByTypeAndPosition('quotient_digit', idx);
+      const step = quotientSteps[0];
+      r1.cells[sepCol + 1 + idx] =
+        step && !step.isCompleted ? (
+          renderInputCell(step)
+        ) : (
+          <div className={cn('w-10 h-12 flex items-center justify-center font-bold', step?.isCompleted && 'text-success')}>{quotientDigits[idx] ?? ''}</div>
+        );
+    });
+
+    // keep the vertical bar visible in the quotient row too
+    r1.cells[sepCol] = (
+      <div className="w-10 h-12 flex items-center justify-center">
+        <div className="w-0.5 h-full bg-foreground" />
+      </div>
+    );
+  }
+
+  let nextRow = 2;
+  for (let wsIdx = 0; wsIdx <= state.currentWorkingStep && wsIdx < workingSteps.length; wsIdx++) {
+    const ws = workingSteps[wsIdx];
+    const quotientStep = getStepsByTypeAndPosition('quotient_digit', wsIdx)[0];
+    const quotientCompleted = quotientStep?.isCompleted;
+
+    const multiplySteps = getStepsByTypeAndPosition('multiply_result', wsIdx);
+    const subtractSteps = getStepsByTypeAndPosition('subtract_result', wsIdx);
+
+    const rightEdgeIndex = calculateWorkingStepOffset(wsIdx);
+    const multiplyDigits = ws.multiplyResult.toString().length;
+    const subtractDigits = ws.subtractResult.toString().length;
+    const multiplyStartCol = Math.max(0, rightEdgeIndex - multiplyDigits + 1);
+    const subtractStartCol = Math.max(0, rightEdgeIndex - subtractDigits + 1);
+    const minusCol = Math.max(0, multiplyStartCol - 1);
+    const broughtDownCol = Math.min(colsLeft - 1, rightEdgeIndex + 1);
+
+    const multiplyRowIdx = wsIdx === 0 ? 1 : nextRow;
+    const multiplyRow = ensureRow(multiplyRowIdx);
+
+    if (quotientCompleted) {
+      multiplyRow.cells[minusCol] = renderDigitCell('−', 'text-muted-foreground');
+      multiplySteps.forEach((step, i) => {
+        multiplyRow.cells[multiplyStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step);
+      });
+    }
+
+    const multiplyDone = multiplySteps.length > 0 && multiplySteps.every((s) => s.isCompleted);
+    if (multiplyDone) {
+      const lineRowIdx = multiplyRowIdx + 1;
+      const subRowIdx = multiplyRowIdx + 2;
+      const lineRow = ensureRow(lineRowIdx);
+      const subRow = ensureRow(subRowIdx);
+
+      for (let c = multiplyStartCol; c < multiplyStartCol + multiplyDigits; c++) {
+        lineRow.cells[c] = <div className="h-0.5 bg-foreground w-full" />;
+      }
+
+      subtractSteps.forEach((step, i) => {
+        subRow.cells[subtractStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step);
+      });
+
+      const hasNextDigit = ws.broughtDown !== undefined;
+      const subtractDone = subtractSteps.length > 0 && subtractSteps.every((s) => s.isCompleted);
+      if (hasNextDigit && subtractDone && broughtDownCol >= 0) {
+        subRow.cells[broughtDownCol] = <div className="w-10 h-12 flex items-center justify-center font-bold text-primary">{ws.broughtDown}</div>;
+      }
+
+      if (wsIdx > 0) nextRow = subRowIdx + 1;
+      if (wsIdx === 0) nextRow = Math.max(nextRow, subRowIdx + 1);
+    } else if (wsIdx > 0) {
+      nextRow = Math.max(nextRow, multiplyRowIdx + 1);
+    }
+  }
+
   return (
     <div className="card-elevated py-6 px-8 md:py-8 md:px-10 inline-flex w-fit min-h-[248px] sm:min-h-[280px] items-start justify-center">
-      <div className="flex flex-col justify-start text-2xl">
-        <div className="flex items-stretch">
-          <div className="flex">
-            {dividendStr.split('').map((digit, idx) => (
-              <div key={`dividend-${idx}`}>{renderDigitCell(digit)}</div>
-            ))}
-          </div>
-
-          <div className="flex flex-col">
-            <div className="flex items-stretch h-12">
-              <div className="w-0.5 bg-foreground" />
-              <div className="flex items-center px-2">
-                {divisorStr.split('').map((digit, idx) => (
-                  <span key={`divisor-${idx}`} className="font-bold">
-                    {digit}
-                  </span>
-                ))}
-              </div>
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${totalCols}, ${cellWidth}rem)` }}>
+        {rows.map((r, rowIdx) =>
+          r.cells.map((node, colIdx) => (
+            <div
+              key={`r${rowIdx}-c${colIdx}`}
+              className={cn(
+                'w-10 h-12 flex items-center justify-center',
+                r.topLineFromCol !== undefined && colIdx >= r.topLineFromCol ? 'border-t-2 border-foreground' : null,
+              )}
+            >
+              {node}
             </div>
-          </div>
-        </div>
-
-        <div className="flex">
-          <div style={{ width: `${dividendStr.length * cellWidth}rem` }} />
-          <div className="flex flex-col">
-            <div className="h-0.5 bg-foreground" style={{ width: `${(divisorStr.length + quotientStr.length) * cellWidth + 1}rem` }} />
-            <div className="flex pl-2">
-              {quotientStr.split('').map((_, idx) => {
-                const quotientSteps = getStepsByTypeAndPosition('quotient_digit', idx);
-                const step = quotientSteps[0];
-                return (
-                  <div key={`quotient-${idx}`}>
-                    {step && !step.isCompleted ? (
-                      renderInputCell(step)
-                    ) : (
-                      <div className={cn('w-10 h-12 flex items-center justify-center font-bold', step?.isCompleted && 'text-success')}>{quotientDigits[idx] ?? ''}</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col mt-0.5">
-          {workingSteps.map((ws, wsIdx) => {
-            if (wsIdx > state.currentWorkingStep) return null;
-
-            const quotientStep = getStepsByTypeAndPosition('quotient_digit', wsIdx)[0];
-            const quotientCompleted = quotientStep?.isCompleted;
-
-            const multiplySteps = getStepsByTypeAndPosition('multiply_result', wsIdx);
-            const subtractSteps = getStepsByTypeAndPosition('subtract_result', wsIdx);
-
-            const rightEdgeIndex = calculateWorkingStepOffset(wsIdx);
-            const currentDigits = ws.currentNumber.toString().length;
-            const chunkStartIndex = rightEdgeIndex - currentDigits + 1;
-            const multiplyDigits = ws.multiplyResult.toString().length;
-            const subtractDigits = ws.subtractResult.toString().length;
-
-            const multiplyOffset = (rightEdgeIndex - multiplyDigits + 1) * cellWidth;
-            const subtractOffset = (rightEdgeIndex - subtractDigits + 1) * cellWidth;
-            const chunkStartOffset = chunkStartIndex * cellWidth;
-            const digitStartIndex = rightEdgeIndex - multiplyDigits + 1;
-            const gapCells = Math.max(0, digitStartIndex - chunkStartIndex - 1);
-
-            const hasNextDigit = ws.broughtDown !== undefined;
-
-            return (
-              <div key={`working-${wsIdx}`} className="flex flex-col">
-                {quotientCompleted ? (
-                  <div className="flex items-center" style={{ paddingLeft: `${chunkStartOffset}rem` }}>
-                    {renderDigitCell('−', 'text-muted-foreground')}
-                    {gapCells
-                      ? Array.from({ length: gapCells }).map((_, i) => <div key={`gap-${wsIdx}-${i}`} className="w-10 h-12" />)
-                      : null}
-                    {multiplySteps.map((step) => (
-                      <div key={step.id}>{step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step)}</div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {multiplySteps.every((s) => s.isCompleted) && multiplySteps.length > 0 ? (
-                  <>
-                    <div className="h-0.5 bg-foreground my-1" style={{ marginLeft: `${multiplyOffset}rem`, width: `${multiplyDigits * cellWidth}rem` }} />
-                    <div className="flex relative" style={{ paddingLeft: `${subtractOffset}rem` }}>
-                      {subtractSteps.map((step) => (
-                        <div key={step.id}>{step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '', 'text-success') : renderInputCell(step)}</div>
-                      ))}
-
-                      {hasNextDigit && subtractSteps.every((s) => s.isCompleted) ? (
-                        <div className="w-10 h-12 flex items-center justify-center font-bold text-primary">{ws.broughtDown}</div>
-                      ) : null}
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
+          )),
+        )}
       </div>
     </div>
   );

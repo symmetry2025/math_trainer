@@ -6,6 +6,16 @@ import { prisma } from '../../../../lib/db';
 import { AUTH_COOKIE_NAME, expiresAtFromNow, hashToken, newToken } from '../../../../lib/auth';
 import { getBillingInfoByUserId, hasBillingAccess, trialEndsAtFromNow } from '../../../../lib/billing';
 
+function parseLinkToken(startParam: string): string | null {
+  const sp = String(startParam || '').trim();
+  const m = sp.match(/^link:(.+)$/i);
+  if (!m) return null;
+  const token = String(m[1] || '').trim();
+  // Accept only hex (we use newToken()).
+  if (!/^[0-9a-f]{32,128}$/i.test(token)) return null;
+  return token.toLowerCase();
+}
+
 function cleanEnvValue(raw: unknown): string {
   let v = String(raw ?? '').trim();
   v = v.replaceAll('\r', ' ').replaceAll('\n', ' ').trim();
@@ -150,10 +160,83 @@ export async function POST(req: Request) {
   const displayName = `${firstName} ${lastName}`.trim() || null;
 
   const now = new Date();
+  const startParam = startParamRaw || v.parsed.startParam || '';
+  const linkToken = parseLinkToken(startParam);
 
-  // Find by maxUserId. If absent — create.
+  // Resolve account: either explicit link to existing user, or identity login, or create a new user.
+  const provider = 'max' as const;
+  const identityKey = { provider_providerUserId: { provider, providerUserId: maxUserId } } as const;
+
+  let userId: string | null = null;
+
+  if (linkToken) {
+    const tokenHash = hashToken(linkToken);
+    const lt = await prisma.authLinkToken.findUnique({
+      where: { tokenHash },
+      select: { id: true, userId: true, provider: true, expiresAt: true, usedAt: true },
+    });
+    if (!lt) return NextResponse.json({ error: 'invalid_link_token' }, { status: 401 });
+    if (lt.usedAt) return NextResponse.json({ error: 'link_token_used' }, { status: 401 });
+    if (lt.expiresAt.getTime() <= now.getTime()) return NextResponse.json({ error: 'link_token_expired' }, { status: 401 });
+    if (lt.provider !== provider) return NextResponse.json({ error: 'link_token_provider_mismatch' }, { status: 401 });
+
+    const existing = await prisma.authIdentity.findUnique({ where: identityKey, select: { userId: true } });
+    if (existing && existing.userId !== lt.userId) return NextResponse.json({ error: 'identity_already_linked' }, { status: 409 });
+
+    if (!existing) {
+      await prisma.authIdentity.create({
+        data: { userId: lt.userId, provider, providerUserId: maxUserId, lastLoginAt: now },
+        select: { id: true },
+      });
+    } else {
+      await prisma.authIdentity.update({ where: identityKey, data: { lastLoginAt: now } }).catch(() => undefined);
+    }
+
+    await prisma.authLinkToken.update({ where: { id: lt.id }, data: { usedAt: now } }).catch(() => undefined);
+    userId = lt.userId;
+  } else {
+    const identity = await prisma.authIdentity.findUnique({ where: identityKey, select: { userId: true } });
+    if (identity) {
+      userId = identity.userId;
+      await prisma.authIdentity.update({ where: identityKey, data: { lastLoginAt: now } }).catch(() => undefined);
+    }
+  }
+
+  // Backward-compat: if we don't have AuthIdentity yet, fall back to legacy maxUserId on User.
+  if (!userId) {
+    const legacy = await prisma.user.findUnique({ where: { maxUserId }, select: { id: true } });
+    if (legacy?.id) {
+      userId = legacy.id;
+      await prisma.authIdentity
+        .create({ data: { userId, provider, providerUserId: maxUserId, lastLoginAt: now }, select: { id: true } })
+        .catch(() => undefined);
+    }
+  }
+
+  // Create user if still missing.
+  if (!userId) {
+    const email = makeTechEmail(maxUserId);
+    const passwordHash = await bcrypt.hash(newToken(), 10);
+    const created = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        role: 'student',
+        displayName,
+        emailVerifiedAt: now,
+        maxUserId,
+        authProvider: 'max',
+        onboardingCompletedAt: null,
+      },
+      select: { id: true },
+    });
+    userId = created.id;
+    await prisma.authIdentity.create({ data: { userId, provider, providerUserId: maxUserId, lastLoginAt: now }, select: { id: true } }).catch(() => undefined);
+  }
+
+  // Load user for downstream logic.
   let user = await prisma.user.findUnique({
-    where: { maxUserId },
+    where: { id: userId },
     select: {
       id: true,
       email: true,
@@ -167,36 +250,18 @@ export async function POST(req: Request) {
       onboardingCompletedAt: true,
     },
   });
-  if (!user) {
-    const email = makeTechEmail(maxUserId);
-    const passwordHash = await bcrypt.hash(newToken(), 10);
-    user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        role: 'student',
-        displayName,
-        emailVerifiedAt: now,
-        maxUserId,
-        authProvider: 'max',
-        onboardingCompletedAt: null,
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        displayName: true,
-        emailVerifiedAt: true,
-        trialEndsAt: true,
-        billingStatus: true,
-        paidUntil: true,
-        authProvider: true,
-        onboardingCompletedAt: true,
-      },
-    });
-  } else if (!user.emailVerifiedAt) {
-    // Trust MAX user as verified identity for MVP.
-    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: now } });
+  if (!user) return NextResponse.json({ error: 'user_not_found' }, { status: 404 });
+
+  // Trust MAX user as verified identity for MVP.
+  if (!user.emailVerifiedAt) {
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: now } }).catch(() => undefined);
+    user = { ...user, emailVerifiedAt: now };
+  }
+
+  // If profile is empty — hydrate displayName from MAX.
+  if (!user.displayName && displayName) {
+    await prisma.user.update({ where: { id: user.id }, data: { displayName } }).catch(() => undefined);
+    user = { ...user, displayName };
   }
 
   // Honest trial: start on the first successful login (also for MAX logins).
@@ -212,7 +277,7 @@ export async function POST(req: Request) {
 
   // If MAX user hasn't selected the role yet — force onboarding.
   if (user.authProvider === 'max' && !user.onboardingCompletedAt) {
-    const res = NextResponse.json({ ok: true, redirectTo: '/onboarding/role', access: { ok: true, reason: 'trial' }, startParam: startParamRaw || v.parsed.startParam || null });
+    const res = NextResponse.json({ ok: true, redirectTo: '/onboarding/role', access: { ok: true, reason: 'trial' }, startParam: startParam || null });
     res.cookies.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'lax',
@@ -229,7 +294,7 @@ export async function POST(req: Request) {
     : { ok: false as const, reason: 'none' as const };
   const redirectTo = access.ok ? (info?.role === 'parent' ? '/progress/stats' : '/class-2/addition') : '/billing';
 
-  const res = NextResponse.json({ ok: true, redirectTo, access, startParam: startParamRaw || v.parsed.startParam || null });
+  const res = NextResponse.json({ ok: true, redirectTo, access, startParam: startParam || null });
   res.cookies.set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',

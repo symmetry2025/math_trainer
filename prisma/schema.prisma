@@ -26,6 +26,12 @@ enum AuthProvider {
   max
 }
 
+enum IdentityProvider {
+  password
+  max
+  telegram
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -46,6 +52,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  authIdentities AuthIdentity[]
+  authLinkTokens AuthLinkToken[]
   sessions Session[]
   emailConfirmationTokens EmailConfirmationToken[]
   trainerProgress TrainerProgress[]
@@ -59,6 +67,39 @@ model User {
   parentInvite ParentInvite?
   childLinks ParentStudentLink[] @relation("ParentToChildren")
   parentLink ParentStudentLink? @relation("StudentToParent")
+}
+
+model AuthIdentity {
+  id             String           @id @default(cuid())
+  userId         String
+  provider       IdentityProvider
+  providerUserId String
+  lastLoginAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@index([provider])
+}
+
+model AuthLinkToken {
+  id        String           @id @default(cuid())
+  userId    String
+  provider  IdentityProvider
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([provider])
+  @@index([expiresAt])
+  @@index([usedAt])
 }
 
 model Promoter {

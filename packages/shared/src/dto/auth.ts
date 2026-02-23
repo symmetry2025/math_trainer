@@ -127,4 +127,42 @@ export const AuthErrorDtoSchema = z.object({
 });
 export type AuthErrorDto = z.infer<typeof AuthErrorDtoSchema>;
 
+/**
+ * External identities linking (MAX/Telegram/...)
+ *
+ * Goal: unify "account" (User) and "login sources" (providers).
+ * The backend should support explicit linking via short-lived one-time tokens.
+ */
+
+export const AuthIdentityProviderSchema = z.enum(['max', 'telegram']);
+export type AuthIdentityProvider = z.infer<typeof AuthIdentityProviderSchema>;
+
+export const AuthStartLinkTokenRequestDtoSchema = z.object({
+  provider: AuthIdentityProviderSchema,
+});
+export type AuthStartLinkTokenRequestDto = z.infer<typeof AuthStartLinkTokenRequestDtoSchema>;
+
+export const AuthStartLinkTokenResponseDtoSchema = z.object({
+  ok: z.literal(true),
+  provider: AuthIdentityProviderSchema,
+  token: z.string().min(10),
+  startParam: z.string().min(1), // e.g. "link:<token>"
+  expiresAt: IsoDateTimeStringSchema,
+});
+export type AuthStartLinkTokenResponseDto = z.infer<typeof AuthStartLinkTokenResponseDtoSchema>;
+
+export const AuthIdentityDtoSchema = z.object({
+  provider: AuthIdentityProviderSchema,
+  providerUserId: z.string().min(1).optional(),
+  linkedAt: IsoDateTimeStringSchema,
+  lastLoginAt: IsoDateTimeStringSchema.nullable(),
+});
+export type AuthIdentityDto = z.infer<typeof AuthIdentityDtoSchema>;
+
+export const AuthListIdentitiesResponseDtoSchema = z.object({
+  ok: z.literal(true),
+  identities: z.array(AuthIdentityDtoSchema),
+});
+export type AuthListIdentitiesResponseDto = z.infer<typeof AuthListIdentitiesResponseDtoSchema>;
+
 

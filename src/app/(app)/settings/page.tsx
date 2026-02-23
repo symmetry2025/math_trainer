@@ -41,6 +41,10 @@ type BillingDto = {
   access: { ok: boolean; reason: 'admin' | 'trial' | 'paid' | 'none' };
 };
 
+type IdentityProvider = 'max' | 'telegram';
+type LinkedIdentityDto = { provider: IdentityProvider; providerUserId?: string; linkedAt: string; lastLoginAt: string | null };
+type LinkTokenDto = { provider: IdentityProvider; token: string; startParam: string; expiresAt: string };
+
 type CpWidget = {
   pay: (
     action: 'charge',
@@ -147,6 +151,60 @@ export default function SettingsPage() {
   const [parentChildren, setParentChildren] = useState<ParentChildListItemDto[]>([]);
   const [parentFamilyBusy, setParentFamilyBusy] = useState(false);
   const [parentFamilyError, setParentFamilyError] = useState<string | null>(null);
+
+  const [identities, setIdentities] = useState<LinkedIdentityDto[]>([]);
+  const [identitiesBusy, setIdentitiesBusy] = useState(false);
+  const [identitiesError, setIdentitiesError] = useState<string | null>(null);
+  const [linkToken, setLinkToken] = useState<LinkTokenDto | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  const refreshIdentities = async () => {
+    setIdentitiesError(null);
+    setIdentitiesBusy(true);
+    try {
+      const res = await fetch('/api/auth/identities', { method: 'GET', credentials: 'include', cache: 'no-store' });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null) || 'request_failed');
+      const list = isRecord(body) && Array.isArray((body as any).identities) ? ((body as any).identities as LinkedIdentityDto[]) : [];
+      setIdentities(list);
+    } catch (e: unknown) {
+      setIdentitiesError(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setIdentitiesBusy(false);
+    }
+  };
+
+  const startLink = async (provider: IdentityProvider) => {
+    setIdentitiesError(null);
+    setLinkToken(null);
+    setLinkBusy(true);
+    try {
+      const res = await fetch('/api/auth/link-token', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ provider }),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null) || 'request_failed');
+      if (!isRecord(body) || typeof (body as any).startParam !== 'string') throw new Error('invalid_response');
+      setLinkToken(body as any as LinkTokenDto);
+    } catch (e: unknown) {
+      setIdentitiesError(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const copyLinkCode = async () => {
+    const code = String(linkToken?.startParam || '').trim();
+    if (!code) return;
+    try {
+      await window.navigator.clipboard?.writeText(code);
+    } catch {
+      // ignore
+    }
+  };
 
   const refreshBilling = async (): Promise<BillingDto | null> => {
     const res = await fetch('/api/billing/status', { method: 'GET', credentials: 'include', cache: 'no-store' });
@@ -323,6 +381,7 @@ export default function SettingsPage() {
         setMe(u);
         setDisplayName(String(u?.displayName ?? '').trim());
         setNewEmail(String(u?.email ?? '').trim());
+        await refreshIdentities();
         // Best-effort load billing info for the banner (not needed for promoters).
         if (u?.role !== 'promoter' && u?.role !== 'student') await refreshBilling();
         if (u?.role === 'student') await refreshStudentFamily();
@@ -523,6 +582,103 @@ export default function SettingsPage() {
 
         {info ? <div className="card-elevated p-4 text-sm text-foreground">{info}</div> : null}
         {error ? <div className="card-elevated p-4 text-sm text-destructive">{error}</div> : null}
+
+        {/* Linked identities (unified provider linking flow) */}
+        {me ? (
+          <div className="card-elevated p-6 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Связанные аккаунты</h2>
+                <div className="text-sm text-muted-foreground">Подключайте разные способы входа к одному аккаунту</div>
+              </div>
+              <button type="button" className="btn-primary" onClick={refreshIdentities} disabled={identitiesBusy}>
+                {identitiesBusy ? '...' : 'Обновить'}
+              </button>
+            </div>
+
+            {identitiesError ? <div className="text-sm text-destructive">{identitiesError}</div> : null}
+
+            <div className="grid gap-3">
+              <div className="rounded-2xl border border-border/60 bg-background/40 p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-bold">MAX</div>
+                  <div className="text-xs text-muted-foreground">Вход через mini‑app MAX</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Статус:{' '}
+                    <span className="font-semibold text-foreground">
+                      {identities.some((i) => i.provider === 'max') ? 'подключен' : 'не подключен'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary shrink-0"
+                  onClick={() => startLink('max')}
+                  disabled={linkBusy || identities.some((i) => i.provider === 'max')}
+                >
+                  {identities.some((i) => i.provider === 'max') ? 'Подключено' : linkBusy ? 'Генерирую…' : 'Подключить'}
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-border/60 bg-background/40 p-4 flex items-start justify-between gap-3 opacity-80">
+                <div className="min-w-0">
+                  <div className="font-bold">Telegram</div>
+                  <div className="text-xs text-muted-foreground">Вход через Telegram mini‑app</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Статус:{' '}
+                    <span className="font-semibold text-foreground">
+                      {identities.some((i) => i.provider === 'telegram') ? 'подключен' : 'не подключен'}
+                    </span>
+                  </div>
+                </div>
+                <button type="button" className="btn-secondary shrink-0" disabled={true}>
+                  Скоро
+                </button>
+              </div>
+            </div>
+
+            {linkToken ? (
+              <div className="rounded-2xl border border-border/60 bg-background/40 p-4 space-y-3">
+                <div className="text-sm font-semibold">Привязка</div>
+                <div className="text-xs text-muted-foreground">Срок действия до: {fmtDate(linkToken.expiresAt)}</div>
+
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Шаг 1. Скопируй код</div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={linkToken.startParam}
+                      className="h-10 flex-1 rounded-2xl border border-input bg-background px-3 py-2 text-sm font-mono"
+                    />
+                    <button type="button" className="btn-secondary" onClick={copyLinkCode}>
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>Шаг 2. Открой mini‑app у провайдера и передай этот код как старт‑параметр.</div>
+                  <div className="text-muted-foreground/80">
+                    Для MAX можно использовать параметры <span className="font-mono">startapp</span>/<span className="font-mono">start_param</span>.
+                  </div>
+                </div>
+
+                {linkToken.provider === 'max' ? (
+                  <a
+                    className="btn-secondary inline-flex items-center justify-center"
+                    href={`/max?startapp=${encodeURIComponent(linkToken.startParam)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Открыть /max (тест)
+                  </a>
+                ) : null}
+
+                <div className="text-xs text-muted-foreground">Шаг 3. Вернись сюда и нажми «Обновить».</div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Family (student) */}
         {me && isStudent ? (

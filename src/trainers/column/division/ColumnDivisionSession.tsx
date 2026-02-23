@@ -11,10 +11,11 @@ import { playCorrectSfx, playWrongSfx } from '../../../lib/sfx';
 import { cn } from '../../../lib/utils';
 import { prepareUniqueList } from '../../../lib/uniqueProblems';
 import ColumnDivisionDisplay from './ColumnDivisionDisplay';
-import { generateDivisionProblem, useColumnDivision } from './useColumnDivision';
+import { generateDivisionProblem, type ColumnDivisionVariant, useColumnDivision } from './useColumnDivision';
 
 interface ColumnDivisionSessionProps {
   difficulty?: 'easy' | 'medium' | 'hard';
+  variant?: ColumnDivisionVariant;
   totalProblems?: number;
   onComplete?: (mistakes: number) => void;
   /** Live mistakes updates (for canonical HUD in TrainerFlow) */
@@ -28,6 +29,7 @@ interface ColumnDivisionSessionProps {
 
 export default function ColumnDivisionSession({
   difficulty = 'medium',
+  variant,
   totalProblems = 10,
   onComplete,
   onMistakesChange,
@@ -37,7 +39,7 @@ export default function ColumnDivisionSession({
   embedded = false,
   onBack,
 }: ColumnDivisionSessionProps) {
-  const { state, currentStep, handleInput, reset } = useColumnDivision(difficulty);
+  const { state, currentStep, handleInput, reset } = useColumnDivision(difficulty, variant);
 
   const [solvedProblems, setSolvedProblems] = useState(0);
   const [totalMistakes, setTotalMistakes] = useState(0);
@@ -132,23 +134,23 @@ export default function ColumnDivisionSession({
     processedProblemRef.current = null;
     const list = prepareUniqueList({
       count: totalProblems,
-      make: () => generateDivisionProblem(difficulty),
+      make: () => generateDivisionProblem(difficulty, variant),
       keyOf: (p) => `${p.dividend}/${p.divisor}`,
     });
     setPreparedProblems(list);
     reset(difficulty, list[0]);
-  }, [reset, difficulty]);
+  }, [reset, difficulty, variant, totalProblems]);
 
   useEffect(() => {
     if (preparedProblems.length === totalProblems) return;
     const list = prepareUniqueList({
       count: totalProblems,
-      make: () => generateDivisionProblem(difficulty),
+      make: () => generateDivisionProblem(difficulty, variant),
       keyOf: (p) => `${p.dividend}/${p.divisor}`,
     });
     setPreparedProblems(list);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalProblems, difficulty]);
+  }, [totalProblems, difficulty, variant]);
 
   useEffect(() => {
     if (!preparedProblems[0]) return;
@@ -178,6 +180,12 @@ export default function ColumnDivisionSession({
       }
       case 'subtract_result':
         return 'Вычти результат умножения';
+      case 'bring_down': {
+        const wsIdx = currentStep.position;
+        const ws = state.workingSteps[wsIdx];
+        const digit = ws?.broughtDown;
+        return typeof digit === 'number' ? `Снеси цифру ${digit}` : 'Снеси следующую цифру';
+      }
       default:
         return '';
     }

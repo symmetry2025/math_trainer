@@ -205,11 +205,16 @@
 
   .answer-option {
     @apply flex items-center justify-center px-8 py-4 rounded-2xl font-bold text-xl transition-all duration-200 cursor-pointer select-none border-2 border-transparent;
-    @apply bg-card hover:border-primary/30;
+    @apply bg-card;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
     box-shadow: var(--shadow-sm);
+    -webkit-tap-highlight-color: transparent;
   }
-  .answer-option:hover {
-    box-shadow: var(--shadow-md);
+  @media (hover: hover) and (pointer: fine) {
+    .answer-option:hover {
+      @apply border-primary/30;
+      box-shadow: var(--shadow-md);
+    }
   }
   .answer-option:active {
     box-shadow: var(--shadow-sm);

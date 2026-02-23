@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 import { MultiplicationTable } from './ui/MultiplicationTable';
 import NumberKeyboard from '../../components/NumberKeyboard';
@@ -44,10 +44,10 @@ function normalizeConfig(cfg: MultiplicationTableSessionConfig): MultiplicationT
   const base = (Array.isArray(cfg.selectedMultipliers) ? cfg.selectedMultipliers : [])
     .map((n) => clampInt(n, 1, 10, 1))
     .filter((n, idx, arr) => arr.indexOf(n) === idx);
-  const selectedMultipliers = base.length ? base : [1];
-  const normalizedMultipliers = [selectedMultipliers[0] ?? 1]; // фиксируем один множитель
+  const selectedMultipliers = (base.length ? base : [1]).slice().sort((a, b) => a - b);
 
-  const highlightRow = !!cfg.highlightRow;
+  // Row highlight only makes sense when practicing a single multiplier.
+  const highlightRow = !!cfg.highlightRow && selectedMultipliers.length <= 1;
   const helper = cfg.helper === 'numbers' ? 'numbers' : cfg.helper === 'table' ? 'table' : null;
   const race = cfg.race
     ? {
@@ -56,7 +56,7 @@ function normalizeConfig(cfg: MultiplicationTableSessionConfig): MultiplicationT
       }
     : undefined;
 
-  return { order, answerInputMode, totalProblems, selectedMultipliers: normalizedMultipliers, highlightRow, helper, race };
+  return { order, answerInputMode, totalProblems, selectedMultipliers, highlightRow, helper, race };
 }
 
 function makeOptions(answer: number): number[] {
@@ -89,16 +89,17 @@ function makeTrainingOrderedProblems(multiplier: number): MultiplicationProblem[
 function makeProblems(cfg: MultiplicationTableSessionConfig): MultiplicationProblem[] {
   const c = normalizeConfig(cfg);
   const count = c.totalProblems;
+  const multipliers = c.selectedMultipliers.length ? c.selectedMultipliers : [1];
 
   if (c.order === 'ordered') {
-    const a = c.selectedMultipliers[0] ?? 1;
-    return makeTrainingOrderedProblems(a).slice(0, count);
+    const ordered = multipliers.flatMap((a) => makeTrainingOrderedProblems(a));
+    return ordered.slice(0, count);
   }
 
   return prepareUniqueList({
     count,
     make: () => {
-      const a = c.selectedMultipliers[0] ?? 1;
+      const a = multipliers[Math.floor(Math.random() * multipliers.length)] ?? 1;
       const b = Math.floor(Math.random() * 10) + 1;
       const answer = a * b;
       return { a, b, answer, options: makeOptions(answer) };
@@ -150,21 +151,40 @@ export function MultiplicationTableSession(props: {
 
   const problem = engine.problem ?? null;
 
+  const handleKeyboardInput = (value: number) => {
+    if (!problem) return;
+    if (engine.selectedAnswer !== null) return;
+    const correct = problem.answer;
+    const next = (manualAnswer + value.toString()).slice(0, 3);
+    setManualAnswer(next);
+    const numValue = Number.parseInt(next, 10);
+    if (Number.isFinite(numValue)) {
+      if (numValue === correct) engine.submitAnswer(numValue);
+      else if (next.length >= String(correct).length) engine.submitAnswer(numValue);
+    }
+  };
+
+  const handleBackspace = () => {
+    if (engine.selectedAnswer !== null) return;
+    setManualAnswer((v) => v.slice(0, -1));
+  };
+
   // Reset local input artifacts on next problem.
   useEffect(() => {
     setManualAnswer('');
     setPickedCell(null);
   }, [engine.index]);
 
+  // Clear manual input when the engine resets after a wrong attempt (canonical behavior).
+  useLayoutEffect(() => {
+    if (config.answerInputMode !== 'manual') return;
+    if (engine.selectedAnswer === null && engine.status === null) setManualAnswer('');
+  }, [config.answerInputMode, engine.index, engine.selectedAnswer, engine.status]);
+
   usePhysicalNumberKeyboard({
     enabled: config.answerInputMode === 'manual' && engine.selectedAnswer === null,
-    onDigit: (n) => setManualAnswer((v) => (v + String(n)).slice(0, 3)),
-    onBackspace: () => setManualAnswer((v) => v.slice(0, -1)),
-    onEnter: () => {
-      if (engine.selectedAnswer !== null) return;
-      const n = Number(manualAnswer || '');
-      if (Number.isFinite(n) && String(manualAnswer || '').trim()) engine.submitAnswer(Math.trunc(n));
-    },
+    onDigit: handleKeyboardInput,
+    onBackspace: handleBackspace,
   });
 
   // Live header metrics
@@ -269,20 +289,9 @@ export function MultiplicationTableSession(props: {
                 disabled={engine.selectedAnswer !== null}
                 showBackspace={true}
                 backspaceEnabled={problem.answer >= 10 && manualAnswer.length > 0}
-                onBackspace={() => setManualAnswer((v) => v.slice(0, -1))}
-                onInput={(n) => setManualAnswer((v) => (v + String(n)).slice(0, 3))}
+                onBackspace={handleBackspace}
+                onInput={handleKeyboardInput}
               />
-              <button
-                type="button"
-                disabled={engine.selectedAnswer !== null || !manualAnswer.trim()}
-                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  const n = Number(manualAnswer || '');
-                  if (Number.isFinite(n)) engine.submitAnswer(Math.trunc(n));
-                }}
-              >
-                Ответить
-              </button>
             </div>
           ) : (
             <div className="w-full">

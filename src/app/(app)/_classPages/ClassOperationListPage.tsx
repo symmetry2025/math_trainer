@@ -147,7 +147,7 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
         router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
         return;
       }
-      if (/^mul-table-(\d+)$/.test(String(exerciseId || '')) || exerciseId === 'mul-table-full') {
+      if (/^mul-table-(\d+)$/.test(String(exerciseId || '')) || exerciseId === 'mul-table-full' || exerciseId === 'mul-table-2-5') {
         router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
         return;
       }
@@ -160,8 +160,8 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
     }
 
     // division
-    if (exerciseId === 'column-division') {
-      router.push(`${props.basePath}/column-division`);
+    if (exerciseId === 'column-division' || exerciseId.startsWith('column-division-')) {
+      router.push(`${props.basePath}/${encodeURIComponent(exerciseId)}`);
       return;
     }
     if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {

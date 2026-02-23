@@ -352,25 +352,15 @@ export const multiplicationData: GradeSection[] = [
           { id: 'mul-table-3', title: 'Умножение на 3', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-4', title: 'Умножение на 4', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-5', title: 'Умножение на 5', progress: 0, total: 100, unlocked: true },
-          { id: 'mul-table-6', title: 'Умножение на 6', progress: 0, total: 100, unlocked: true },
-          { id: 'mul-table-7', title: 'Умножение на 7', progress: 0, total: 100, unlocked: true },
-          { id: 'mul-table-8', title: 'Умножение на 8', progress: 0, total: 100, unlocked: true },
-          { id: 'mul-table-9', title: 'Умножение на 9', progress: 0, total: 100, unlocked: true },
-          { id: 'mul-table-full', title: 'Вся таблица умножения', description: 'Тренировка всей таблицы', progress: 0, total: 100, unlocked: true },
+          {
+            id: 'mul-table-2-5',
+            title: 'Таблица умножения на 2–5',
+            description: 'Тренировка таблицы умножения (2, 3, 4, 5)',
+            progress: 0,
+            total: 100,
+            unlocked: true,
+          },
         ],
-      },
-      {
-        id: 'mult-mental-2',
-        title: 'Устное умножение',
-        exercises: [
-          { id: 'mul-round-1d', title: 'Круглое на однозначное', progress: 0, total: 100, unlocked: true },
-          { id: 'mul-2d-1d-max20', title: 'Двухзначное и однозначное', description: 'множитель до 20', progress: 0, total: 100, unlocked: true },
-        ],
-      },
-      {
-        id: 'mult-column-2',
-        title: 'Умножение в столбик',
-        exercises: [{ id: 'column-mul-2d-1d', title: 'Двухзначное на однозначное', progress: 0, total: 100, unlocked: true }],
       },
     ],
   },
@@ -381,7 +371,6 @@ export const multiplicationData: GradeSection[] = [
         id: 'mult-table',
         title: 'Таблица умножения',
         exercises: [
-          { id: 'mul-table-4', title: 'Умножение на 4', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-6', title: 'Умножение на 6', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-7', title: 'Умножение на 7', progress: 0, total: 100, unlocked: true },
           { id: 'mul-table-8', title: 'Умножение на 8', progress: 0, total: 100, unlocked: true },
@@ -395,6 +384,19 @@ export const multiplicationData: GradeSection[] = [
             unlocked: true,
           },
         ],
+      },
+      {
+        id: 'mult-mental-3',
+        title: 'Устное умножение',
+        exercises: [
+          { id: 'mul-round-1d', title: 'Круглое на однозначное', progress: 0, total: 100, unlocked: true },
+          { id: 'mul-2d-1d-max20', title: 'Двухзначное и однозначное', description: 'множитель до 20', progress: 0, total: 100, unlocked: true },
+        ],
+      },
+      {
+        id: 'mult-column-3',
+        title: 'Умножение в столбик',
+        exercises: [{ id: 'column-mul-2d-1d', title: 'Двухзначное на однозначное', progress: 0, total: 100, unlocked: true }],
       },
       {
         id: 'mult-advanced-3',
@@ -455,8 +457,8 @@ export const divisionData: GradeSection[] = [
         id: 'div-column-3',
         title: 'Деление в столбик',
         exercises: [
-          // план: двузначное ÷ однозначное (без остатка)
-          { id: 'column-division', title: 'Двузначное ÷ однозначное', description: 'без остатка', progress: 0, total: 100, unlocked: true },
+          { id: 'column-division-2d-1d', title: 'Двузначное ÷ однозначное', description: 'без остатка', progress: 0, total: 100, unlocked: true },
+          { id: 'column-division-3d-2d', title: 'Трёхзначное ÷ двузначное', description: 'без остатка', progress: 0, total: 100, unlocked: true },
         ],
       },
     ],

@@ -1,5 +1,7 @@
 'use client';
 
+import type { PointerEvent } from 'react';
+
 import { Delete } from 'lucide-react';
 
 import { cn } from '../lib/utils';
@@ -15,6 +17,13 @@ export interface NumberKeyboardProps {
 export default function NumberKeyboard({ onInput, onBackspace, disabled, showBackspace, backspaceEnabled }: NumberKeyboardProps) {
   const withBackspace = typeof onBackspace === 'function' && showBackspace !== false;
   const isBackspaceEnabled = withBackspace && backspaceEnabled !== false && !disabled;
+  const blurOnPointerUp = (e: PointerEvent<HTMLButtonElement>) => {
+    try {
+      e.currentTarget.blur();
+    } catch {
+      // ignore
+    }
+  };
   const numbers: Array<Array<number | 'backspace' | null>> = [
     [7, 8, 9],
     [4, 5, 6],
@@ -43,6 +52,7 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
               key="backspace"
               type="button"
               onClick={isBackspaceEnabled ? onBackspace : undefined}
+              onPointerUp={blurOnPointerUp}
               onMouseDown={(e) => e.currentTarget.classList.add('scale-95')}
               onMouseUp={(e) => e.currentTarget.classList.remove('scale-95')}
               onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}
@@ -74,6 +84,7 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
               key="0-span"
               type="button"
               onClick={() => onInput(0)}
+              onPointerUp={blurOnPointerUp}
               onMouseDown={(e) => e.currentTarget.classList.add('scale-95')}
               onMouseUp={(e) => e.currentTarget.classList.remove('scale-95')}
               onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}
@@ -106,6 +117,7 @@ export default function NumberKeyboard({ onInput, onBackspace, disabled, showBac
             key={num}
             type="button"
             onClick={() => onInput(num)}
+            onPointerUp={blurOnPointerUp}
             onMouseDown={(e) => e.currentTarget.classList.add('scale-95')}
             onMouseUp={(e) => e.currentTarget.classList.remove('scale-95')}
             onMouseLeave={(e) => e.currentTarget.classList.remove('scale-95')}

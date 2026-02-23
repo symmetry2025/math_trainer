@@ -19,7 +19,7 @@ export default function MultiplicationTrainerPage(props: { params: { exerciseId:
     );
   }
 
-  if (/^mul-table-(\d+)$/.test(exerciseId)) {
+  if (/^mul-table-(\d+)$/.test(exerciseId) || exerciseId === 'mul-table-full' || exerciseId === 'mul-table-2-5') {
     const def = useMultiplicationTableDefinitionV2({ backHref: '/multiplication', exerciseId });
     return <TrainerFlow definition={def} />;
   }

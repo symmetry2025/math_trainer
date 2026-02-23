@@ -2,12 +2,22 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { ColumnMultiplicationState, ColumnProblem, InputStep, PartialProduct } from './types';
 
-export type ColumnMultiplicationVariant = '2d-1d';
+export type ColumnMultiplicationVariant = '2d-1d' | '2d-2d' | '3d-2d';
 
 export const generateProblem = (difficulty: 'easy' | 'medium' | 'hard', variant?: ColumnMultiplicationVariant): ColumnProblem => {
   if (variant === '2d-1d') {
     const multiplicand = Math.floor(Math.random() * 90) + 10; // 10-99
     const multiplier = Math.floor(Math.random() * 8) + 2; // 2-9
+    return { multiplicand, multiplier };
+  }
+  if (variant === '2d-2d') {
+    const multiplicand = Math.floor(Math.random() * 90) + 10; // 10-99
+    const multiplier = Math.floor(Math.random() * 90) + 10; // 10-99
+    return { multiplicand, multiplier };
+  }
+  if (variant === '3d-2d') {
+    const multiplicand = Math.floor(Math.random() * 900) + 100; // 100-999
+    const multiplier = Math.floor(Math.random() * 90) + 10; // 10-99
     return { multiplicand, multiplier };
   }
   let multiplicand: number, multiplier: number;

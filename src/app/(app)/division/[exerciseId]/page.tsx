@@ -10,8 +10,11 @@ import { makeColumnDefinition } from '../../../../trainers/column/columnDefiniti
 export default function DivisionTrainerPage(props: { params: { exerciseId: string } }) {
   const exerciseId = String(props.params.exerciseId || '').trim();
 
-  if (exerciseId === 'column-division') {
-    return <TrainerFlow definition={makeColumnDefinition({ trainerId: 'column-division', backHref: '/division', Game: ColumnDivisionSession })} />;
+  if (exerciseId === 'column-division' || exerciseId === 'column-division-2d-1d' || exerciseId === 'column-division-3d-2d') {
+    const variant = exerciseId === 'column-division-3d-2d' ? ('3d-2d' as const) : ('2d-1d' as const);
+    const VariantGame = (p: any) => <ColumnDivisionSession {...p} variant={variant} />;
+    const trainerId = exerciseId === 'column-division' ? 'column-division-2d-1d' : exerciseId;
+    return <TrainerFlow definition={makeColumnDefinition({ trainerId, backHref: '/division', Game: VariantGame })} />;
   }
 
   return (

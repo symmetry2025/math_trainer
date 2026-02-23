@@ -39,6 +39,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
   const [selectedPresetId, setSelectedPresetId] = useState<PresetId | null>(presets[0]?.id ?? null);
   const [config, setConfig] = useState<TConfig | null>(presets[0] ? ensurePresetConfig(presets[0]) : null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [presetTouched, setPresetTouched] = useState(false);
 
   const [result, setResult] = useState<SessionResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -317,6 +318,7 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
     (async () => {
       setStep('entry');
       setEntryError(null);
+      setPresetTouched(false);
       try {
         const p = await definition.loadProgress();
         if (cancelled) return;
@@ -332,6 +334,18 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
       cancelled = true;
     };
   }, [definitionKey, entryReloadKey]); // depend on stable id, not object identity
+
+  // Default preset on the select screen: the last available (unlocked) one.
+  useEffect(() => {
+    if (step !== 'select') return;
+    if (presetTouched) return;
+    if (!presets.length) return;
+
+    const unlocked = presets.filter((p) => !resolveLocked(p.id).locked);
+    const desired = (unlocked[unlocked.length - 1]?.id ?? presets[0]?.id ?? null) as PresetId | null;
+    if (!desired) return;
+    setSelectedPresetId(desired);
+  }, [step, presets, presetTouched, progress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep config in sync when preset selection changes.
   useEffect(() => {
@@ -366,7 +380,10 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
         selectedPresetId={selectedPresetId}
         isLocked={resolveLocked}
         isCompleted={resolveCompleted}
-        onSelect={(id) => setSelectedPresetId(id)}
+        onSelect={(id) => {
+          setPresetTouched(true);
+          setSelectedPresetId(id);
+        }}
         onStart={handleStart}
         advanced={
           definition.advanced && canShowAdvanced && config && progress && selectedPreset

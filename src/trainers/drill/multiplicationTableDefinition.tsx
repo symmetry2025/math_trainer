@@ -81,7 +81,7 @@ function makePresets(multiplier: number): Array<PresetDefinition<MultiplicationT
       title: 'Точность',
       description: 'На выбор • вперемешку • 10 примеров',
       defaultConfig: { presetId: 'lvl2', ...base, order: 'mixed', totalProblems: 10, answerInputMode: 'choice' },
-      unlock: { isLocked: ({ progress }) => !progress.lvl1, lockedReason: () => 'Сначала пройди Уровень 1' },
+      unlock: { isLocked: () => false },
       successPolicy: { type: 'minAccuracy', min: 0.8 },
     },
     {
@@ -122,11 +122,15 @@ function makePresets(multiplier: number): Array<PresetDefinition<MultiplicationT
 
 function makePresetsFull(): Array<PresetDefinition<MultiplicationTableConfig, MultiplicationTableProgress>> {
   const all = [2, 3, 4, 5, 6, 7, 8, 9];
+  return makePresetsSet(all);
+}
+
+function makePresetsSet(multipliers: number[]): Array<PresetDefinition<MultiplicationTableConfig, MultiplicationTableProgress>> {
   const base: Omit<MultiplicationTableConfig, 'presetId' | 'attemptId'> = {
     order: 'mixed',
     answerInputMode: 'choice',
     totalProblems: 20,
-    selectedMultipliers: all,
+    selectedMultipliers: multipliers,
     highlightRow: false,
     helper: null,
   };
@@ -145,7 +149,7 @@ function makePresetsFull(): Array<PresetDefinition<MultiplicationTableConfig, Mu
       title: 'Точность',
       description: 'На выбор • вперемешку • 20 примеров',
       defaultConfig: { presetId: 'lvl2', ...base, order: 'mixed', totalProblems: 20, answerInputMode: 'choice' },
-      unlock: { isLocked: ({ progress }) => !progress.lvl1, lockedReason: () => 'Сначала пройди Уровень 1' },
+      unlock: { isLocked: () => false },
       successPolicy: { type: 'minAccuracy', min: 0.8 },
     },
     {
@@ -189,10 +193,11 @@ function makeMultiplicationTableDefinition(args: {
   /** Canonical exercise id from route: `mul-table-<n>` */
   exerciseId: string;
 }): TrainerDefinition<MultiplicationTableProgress, MultiplicationTableConfig> {
-  const isFull = String(args.exerciseId || '').trim() === 'mul-table-full';
+  const exId = String(args.exerciseId || '').trim();
+  const isFull = exId === 'mul-table-full';
+  const isLimited25 = exId === 'mul-table-2-5';
   const initialMultiplier = (() => {
-    const ex = String(args.exerciseId || '').trim();
-    const m = ex.match(/^mul-table-(\d+)$/);
+    const m = exId.match(/^mul-table-(\d+)$/);
     if (m) {
       const n = Math.max(1, Math.min(10, Number(m[1])));
       return n;
@@ -201,7 +206,7 @@ function makeMultiplicationTableDefinition(args: {
     return 1;
   })();
 
-  const presets = isFull ? makePresetsFull() : makePresets(initialMultiplier);
+  const presets = isFull ? makePresetsFull() : isLimited25 ? makePresetsSet([2, 3, 4, 5]) : makePresets(initialMultiplier);
   const dbTrainerId = `arithmetic:${args.exerciseId}`;
   const progressStorageKeyStr = progressStorageKey(dbTrainerId);
 

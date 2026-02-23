@@ -22,6 +22,7 @@ export function exerciseIdToTrainerDbId(exerciseId: string): string | null {
   // multiplication table per multiplier: `mul-table-<n>` -> arithmetic:mul-table-<n>
   if (/^mul-table-(\d+)$/.test(id)) return `arithmetic:${id}`;
   if (id === 'mul-table-full') return `arithmetic:${id}`;
+  if (id === 'mul-table-2-5') return `arithmetic:${id}`;
   // mental arithmetic: arithmetic:<id>
   if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, id)) return `arithmetic:${id}`;
   // arithmetic equations: arithmetic:<id>
@@ -60,8 +61,8 @@ function applyProgressToStorage(trainerDbId: string, p: any): boolean {
   if (trainerDbId.startsWith('arithmetic:')) {
     const id = trainerDbId.replace(/^arithmetic:/, '');
 
-    // multiplication table: arithmetic:mul-table-<n> OR arithmetic:mul-table-full
-    if (/^mul-table-(\d+)$/.test(id) || id === 'mul-table-full') {
+    // multiplication table: arithmetic:mul-table-<n> OR arithmetic:mul-table-full OR arithmetic:mul-table-2-5
+    if (/^mul-table-(\d+)$/.test(id) || id === 'mul-table-full' || id === 'mul-table-2-5') {
       const storageKey = `smmtry.trainer.progress:${trainerDbId}`;
       const next = {
         lvl1: !!p.lvl1,

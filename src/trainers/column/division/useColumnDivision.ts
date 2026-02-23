@@ -2,8 +2,31 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { ColumnDivisionState, DivisionProblem, DivisionStep, DivisionWorkingStep } from './types';
 
+export type ColumnDivisionVariant = '2d-1d' | '3d-2d';
+
 // Генерация задачи деления (без остатка)
-export const generateDivisionProblem = (difficulty: 'easy' | 'medium' | 'hard'): DivisionProblem => {
+export const generateDivisionProblem = (difficulty: 'easy' | 'medium' | 'hard', variant?: ColumnDivisionVariant): DivisionProblem => {
+  if (variant === '2d-1d') {
+    const divisor = Math.floor(Math.random() * 8) + 2; // 2-9
+    const qMax = Math.max(10, Math.floor(99 / divisor));
+    const quotient = Math.floor(Math.random() * (qMax - 10 + 1)) + 10; // 10..qMax
+    const dividend = divisor * quotient;
+    return { dividend, divisor, quotient, remainder: 0 };
+  }
+  if (variant === '3d-2d') {
+    // 3-digit ÷ 2-digit => keep 1-digit quotient, no remainder.
+    for (let tries = 0; tries < 200; tries++) {
+      const divisor = Math.floor(Math.random() * 88) + 12; // 12-99
+      const qMin = Math.max(2, Math.ceil(100 / divisor));
+      const qMax = Math.min(9, Math.floor(999 / divisor));
+      if (qMin > qMax) continue;
+      const quotient = Math.floor(Math.random() * (qMax - qMin + 1)) + qMin;
+      const dividend = divisor * quotient;
+      if (dividend >= 100 && dividend <= 999) return { dividend, divisor, quotient, remainder: 0 };
+    }
+    // Fallback: deterministic valid case.
+    return { dividend: 144, divisor: 16, quotient: 9, remainder: 0 };
+  }
   let dividend: number, divisor: number, quotient: number;
 
   switch (difficulty) {
@@ -107,6 +130,18 @@ const calculateDivisionSteps = (problem: DivisionProblem): { steps: DivisionStep
       });
     }
 
+    // Bring down the next dividend digit (manual input, canonical).
+    if (dividendIndex < dividendDigits.length) {
+      steps.push({
+        id: `step-${stepId++}`,
+        type: 'bring_down',
+        position: quotientIndex,
+        expectedValue: dividendDigits[dividendIndex]!,
+        isCompleted: false,
+        userValue: null,
+      });
+    }
+
     currentNumber = subtractResult;
     quotientIndex++;
   }
@@ -114,9 +149,9 @@ const calculateDivisionSteps = (problem: DivisionProblem): { steps: DivisionStep
   return { steps, workingSteps };
 };
 
-export const useColumnDivision = (difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
+export const useColumnDivision = (difficulty: 'easy' | 'medium' | 'hard' = 'medium', variant?: ColumnDivisionVariant) => {
   const [state, setState] = useState<ColumnDivisionState>(() => {
-    const problem = generateDivisionProblem(difficulty);
+    const problem = generateDivisionProblem(difficulty, variant);
     const { steps, workingSteps } = calculateDivisionSteps(problem);
     return {
       problem,
@@ -178,7 +213,7 @@ export const useColumnDivision = (difficulty: 'easy' | 'medium' | 'hard' = 'medi
 
   const reset = useCallback(
     (newDifficulty?: 'easy' | 'medium' | 'hard', problemOverride?: DivisionProblem) => {
-      const problem = problemOverride ?? generateDivisionProblem(newDifficulty || difficulty);
+      const problem = problemOverride ?? generateDivisionProblem(newDifficulty || difficulty, variant);
       const { steps, workingSteps } = calculateDivisionSteps(problem);
       setState({
         problem,
@@ -192,7 +227,7 @@ export const useColumnDivision = (difficulty: 'easy' | 'medium' | 'hard' = 'medi
         mistakesCount: 0,
       });
     },
-    [difficulty],
+    [difficulty, variant],
   );
 
   return { state, currentStep, handleInput, reset };

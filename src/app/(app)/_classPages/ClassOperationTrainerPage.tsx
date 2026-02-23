@@ -123,7 +123,7 @@ export function ClassOperationTrainerPage(props: { grade: Grade; op: Operation; 
         return <TrainerFlow definition={makeColumnDefinition({ trainerId: exerciseId, backHref, Game: VariantGame })} />;
       }
     }
-    if (/^mul-table-(\d+)$/.test(exerciseId) || exerciseId === 'mul-table-full') {
+    if (/^mul-table-(\d+)$/.test(exerciseId) || exerciseId === 'mul-table-full' || exerciseId === 'mul-table-2-5') {
       const def = useMultiplicationTableDefinitionV2({ backHref, exerciseId });
       return <TrainerFlow definition={def} />;
     }
@@ -133,8 +133,11 @@ export function ClassOperationTrainerPage(props: { grade: Grade; op: Operation; 
   }
 
   if (props.op === 'division') {
-    if (exerciseId === 'column-division') {
-      return <TrainerFlow definition={makeColumnDefinition({ trainerId: 'column-division', backHref, Game: ColumnDivisionSession })} />;
+    if (exerciseId === 'column-division' || exerciseId === 'column-division-2d-1d' || exerciseId === 'column-division-3d-2d') {
+      const variant = exerciseId === 'column-division-3d-2d' ? ('3d-2d' as const) : ('2d-1d' as const);
+      const VariantGame = (p: any) => <ColumnDivisionSession {...p} variant={variant} />;
+      const trainerId = exerciseId === 'column-division' ? 'column-division-2d-1d' : exerciseId;
+      return <TrainerFlow definition={makeColumnDefinition({ trainerId, backHref, Game: VariantGame })} />;
     }
     if (Object.prototype.hasOwnProperty.call(MENTAL_MATH_CONFIGS, exerciseId)) {
       return <TrainerFlow definition={makeMentalMathDefinition({ trainerId: exerciseId, backHref })} />;

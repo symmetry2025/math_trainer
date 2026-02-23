@@ -36,7 +36,8 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
     return (
       <div
         className={cn(
-          'w-full h-full flex items-center justify-center text-2xl font-bold leading-none rounded-lg border-2 transition-all',
+          // Slight inset so the box does not "grab" separator lines (canonical across all inputs).
+          'w-[calc(100%-0.35rem)] h-[calc(100%-0.35rem)] flex items-center justify-center text-2xl font-bold leading-none rounded-lg border-2 transition-all',
           completed && 'bg-muted/30 border-muted-foreground/20 text-foreground',
           active && !completed && 'bg-primary/20 border-primary animate-pulse',
           !active && !completed && 'bg-muted/30 border-transparent',
@@ -84,6 +85,7 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
   const rightEndX = colsLeft * cellWidth + sepWidth + colsRight * cellWidth;
 
   const hLines: { topRow: number; leftRem: number; widthRem: number }[] = [];
+  const minusMarks: { leftRem: number; topRem: number }[] = [];
   // Top line (above quotient row)
   hLines.push({ topRow: 1, leftRem: vLineX, widthRem: Math.max(0, rightEndX - vLineX) });
 
@@ -117,20 +119,27 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
 
     const multiplySteps = getStepsByTypeAndPosition('multiply_result', wsIdx);
     const subtractSteps = getStepsByTypeAndPosition('subtract_result', wsIdx);
+    const bringDownStep = getStepsByTypeAndPosition('bring_down', wsIdx)[0];
 
     const rightEdgeIndex = calculateWorkingStepOffset(wsIdx);
+    const currentDigits = ws.currentNumber.toString().length;
+    const currentStartCol = Math.max(0, rightEdgeIndex - currentDigits + 1);
     const multiplyDigits = ws.multiplyResult.toString().length;
     const subtractDigits = ws.subtractResult.toString().length;
     const multiplyStartCol = Math.max(0, rightEdgeIndex - multiplyDigits + 1);
     const subtractStartCol = Math.max(0, rightEdgeIndex - subtractDigits + 1);
-    const minusCol = Math.max(0, multiplyStartCol - 1);
     const broughtDownCol = Math.min(colsLeft - 1, rightEdgeIndex + 1);
 
     const multiplyRowIdx = wsIdx === 0 ? 1 : nextRow;
     const multiplyRow = ensureRow(multiplyRowIdx);
 
     if (quotientCompleted) {
-      multiplyRow.cells[minusCol] = renderDigitCell('−', 'text-muted-foreground');
+      // Operator must not occupy a grid cell (canonical like other column trainers).
+      // Place it to the left of the *current number* (so 1-digit under 2-digit still has minus left of tens).
+      minusMarks.push({
+        leftRem: currentStartCol * cellWidth - 0.9,
+        topRem: multiplyRowIdx * cellH - 0.9,
+      });
       multiplySteps.forEach((step, i) => {
         multiplyRow.cells[multiplyStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '') : renderInputCell(step);
       });
@@ -142,8 +151,9 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
       const subRow = ensureRow(subRowIdx);
 
       const hasNextDigit = ws.broughtDown !== undefined;
-      const endCol = hasNextDigit ? broughtDownCol : multiplyStartCol + multiplyDigits - 1;
-      hLines.push({ topRow: subRowIdx, leftRem: multiplyStartCol * cellWidth, widthRem: Math.max(0, (endCol - multiplyStartCol + 1) * cellWidth) });
+      const endCol = hasNextDigit ? broughtDownCol : rightEdgeIndex;
+      // Subtraction line must cover the whole current number width (tens + ones), regardless of result width.
+      hLines.push({ topRow: subRowIdx, leftRem: currentStartCol * cellWidth, widthRem: Math.max(0, (endCol - currentStartCol + 1) * cellWidth) });
 
       subtractSteps.forEach((step, i) => {
         subRow.cells[subtractStartCol + i] = step.isCompleted ? renderDigitCell(getInputValue(step.id) ?? '') : renderInputCell(step);
@@ -151,7 +161,7 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
 
       const subtractDone = subtractSteps.length > 0 && subtractSteps.every((s) => s.isCompleted);
       if (hasNextDigit && subtractDone && broughtDownCol >= 0) {
-        subRow.cells[broughtDownCol] = renderDigitCell(ws.broughtDown ?? '');
+        subRow.cells[broughtDownCol] = bringDownStep && !bringDownStep.isCompleted ? renderInputCell(bringDownStep) : renderDigitCell(ws.broughtDown ?? '');
       }
 
       nextRow = subRowIdx + 1;
@@ -163,6 +173,17 @@ export default function ColumnDivisionDisplay({ state, currentStep }: { state: C
   return (
     <div className="card-elevated py-6 px-8 md:py-8 md:px-10 inline-flex w-fit min-h-[248px] sm:min-h-[280px] items-start justify-center">
       <div className="relative">
+        {/* Minus signs as absolute overlays (do not consume matrix cells) */}
+        {minusMarks.map((m, idx) => (
+          <div
+            key={`minus-${idx}`}
+            className="absolute z-20 pointer-events-none text-2xl md:text-3xl font-bold text-muted-foreground"
+            style={{ left: `${m.leftRem}rem`, top: `${m.topRem}rem` }}
+          >
+            −
+          </div>
+        ))}
+
         <div
           className="grid"
           style={{

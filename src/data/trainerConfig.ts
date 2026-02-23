@@ -160,6 +160,23 @@ const TRAINER_CONFIGS: Record<string, TrainerConfig> = {
     race: { problems: 10 },
     npcSpeeds: { 1: 14, 2: 11, 3: 8 },
   },
+  // Grade-3 column multiplication variants
+  'column-mul-2d-2d': {
+    id: 'column-mul-2d-2d',
+    name: 'Двухзначное × двухзначное — в столбик',
+    accuracy: { problems: 8 },
+    speed: { problems: 4, timeLimit: 120 },
+    race: { problems: 8 },
+    npcSpeeds: { 1: 20, 2: 16, 3: 12 },
+  },
+  'column-mul-3d-2d': {
+    id: 'column-mul-3d-2d',
+    name: 'Трёхзначное × двухзначное — в столбик',
+    accuracy: { problems: 6 },
+    speed: { problems: 3, timeLimit: 180 },
+    race: { problems: 6 },
+    npcSpeeds: { 1: 28, 2: 22, 3: 16 },
+  },
   'column-division': {
     id: 'column-division',
     name: 'Деление в столбик',
@@ -167,6 +184,23 @@ const TRAINER_CONFIGS: Record<string, TrainerConfig> = {
     speed: { problems: 4, timeLimit: 120 },
     race: { problems: 8 },
     npcSpeeds: { 1: 20, 2: 16, 3: 12 },
+  },
+  // Grade-3 column division variants
+  'column-division-2d-1d': {
+    id: 'column-division-2d-1d',
+    name: 'Двузначное ÷ однозначное — в столбик',
+    accuracy: { problems: 8 },
+    speed: { problems: 4, timeLimit: 120 },
+    race: { problems: 8 },
+    npcSpeeds: { 1: 20, 2: 16, 3: 12 },
+  },
+  'column-division-3d-2d': {
+    id: 'column-division-3d-2d',
+    name: 'Трёхзначное ÷ двузначное — в столбик',
+    accuracy: { problems: 6 },
+    speed: { problems: 3, timeLimit: 180 },
+    race: { problems: 6 },
+    npcSpeeds: { 1: 28, 2: 22, 3: 16 },
   },
 };
 

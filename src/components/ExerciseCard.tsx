@@ -127,7 +127,9 @@ export function ExerciseCard(props: {
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className={cn('flex flex-col', props.description ? 'justify-start' : 'justify-center', 'min-h-[2.75rem]')}>
-            <div className="font-semibold text-foreground text-[15px] md:text-base leading-tight line-clamp-1">{props.title}</div>
+            <div className="font-semibold text-foreground text-[15px] md:text-base leading-tight whitespace-normal break-words line-clamp-2 md:line-clamp-1">
+              {props.title}
+            </div>
             {props.description ? <div className="text-sm text-muted-foreground mt-0.5 leading-tight line-clamp-1">{props.description}</div> : null}
           </div>
         </div>

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { AuthListIdentitiesResponseDtoSchema } from '@smmtry/shared';
 
-import { prisma } from '../../../../../lib/db';
-import { getCurrentUserOrNull } from '../../../../../lib/auth';
+import { prisma } from '../../../../lib/db';
+import { getCurrentUserOrNull } from '../../../../lib/auth';
 
 function asIsoOrNull(d: Date | null): string | null {
   return d ? d.toISOString() : null;

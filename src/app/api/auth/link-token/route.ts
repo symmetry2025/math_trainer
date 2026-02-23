@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AuthStartLinkTokenRequestDtoSchema, AuthStartLinkTokenResponseDtoSchema } from '@smmtry/shared';
-import { prisma } from '../../../../../lib/db';
-import { getCurrentUserOrNull, hashToken, newToken } from '../../../../../lib/auth';
+import { prisma } from '../../../../lib/db';
+import { getCurrentUserOrNull, hashToken, newToken } from '../../../../lib/auth';
 
 function asIso(d: Date): string {
   return d.toISOString();

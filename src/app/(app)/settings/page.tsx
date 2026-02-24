@@ -620,7 +620,7 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background/40 p-4 flex items-start justify-between gap-3 opacity-80">
+              <div className="rounded-2xl border border-border/60 bg-background/40 p-4 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-bold">Telegram</div>
                   <div className="text-xs text-muted-foreground">Вход через Telegram mini‑app</div>
@@ -631,9 +631,15 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </div>
-                <button type="button" className="btn-secondary shrink-0" disabled={true}>
-                  Скоро
-                </button>
+                {identities.some((i) => i.provider === 'telegram') ? (
+                  <button type="button" className="btn-secondary shrink-0" disabled={true}>
+                    Подключено
+                  </button>
+                ) : (
+                  <a className="btn-primary shrink-0" href="/tg-link">
+                    Привязать
+                  </a>
+                )}
               </div>
             </div>
 

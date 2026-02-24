@@ -20,6 +20,7 @@ export default function LinkProviderClient(props: { requestToken: string }) {
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [provider, setProvider] = useState<'telegram' | 'max' | null>(null);
+  const [busyLogout, setBusyLogout] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +62,17 @@ export default function LinkProviderClient(props: { requestToken: string }) {
 
   const nextHref = '/settings';
   const title = provider === 'telegram' ? 'Привязка Telegram' : provider === 'max' ? 'Привязка MAX' : 'Привязка аккаунта';
+  const providerLinkHref = provider === 'telegram' ? '/tg-link' : '/settings';
+
+  const logout = async () => {
+    setBusyLogout(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
+    } finally {
+      const next = `/link/provider?req=${encodeURIComponent(requestToken)}`;
+      window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 md:p-10">
@@ -76,14 +88,22 @@ export default function LinkProviderClient(props: { requestToken: string }) {
           {message ? <div className="text-sm">{message}</div> : null}
 
           <div className="pt-2 space-y-2">
-            <a className="btn-primary w-full text-center" href={nextHref}>
+            <a className="btn-primary block w-full text-center" href={nextHref}>
               Перейти в настройки
             </a>
 
             {status === 'expired' || status === 'conflict' ? (
-              <a className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors" href="/tg-link">
-                Открыть страницу привязки
-              </a>
+              <>
+                <a
+                  className="block w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  href={providerLinkHref}
+                >
+                  Открыть страницу привязки
+                </a>
+                <button type="button" className="btn-secondary w-full" onClick={logout} disabled={busyLogout}>
+                  {busyLogout ? '...' : 'Выйти и войти в другой аккаунт'}
+                </button>
+              </>
             ) : null}
           </div>
         </div>

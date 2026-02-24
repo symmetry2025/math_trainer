@@ -165,6 +165,17 @@ export const AuthListIdentitiesResponseDtoSchema = z.object({
 });
 export type AuthListIdentitiesResponseDto = z.infer<typeof AuthListIdentitiesResponseDtoSchema>;
 
+export const AuthUnlinkIdentityRequestDtoSchema = z.object({
+  provider: AuthIdentityProviderSchema,
+});
+export type AuthUnlinkIdentityRequestDto = z.infer<typeof AuthUnlinkIdentityRequestDtoSchema>;
+
+export const AuthUnlinkIdentityResponseDtoSchema = z.object({
+  ok: z.literal(true),
+  provider: AuthIdentityProviderSchema,
+});
+export type AuthUnlinkIdentityResponseDto = z.infer<typeof AuthUnlinkIdentityResponseDtoSchema>;
+
 /**
  * Provider-first linking (mini-app → web).
  *

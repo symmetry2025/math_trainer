@@ -174,6 +174,34 @@ export default function SettingsPage() {
     }
   };
 
+  const unlinkIdentity = async (provider: IdentityProvider) => {
+    setIdentitiesError(null);
+    setIdentitiesBusy(true);
+    try {
+      const ok = window.confirm('Отвязать аккаунт? Если это последний способ входа, вы можете потерять доступ.');
+      if (!ok) return;
+      const res = await fetch('/api/auth/identities', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ provider }),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const err = isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null;
+        if (err === 'would_lock_out') {
+          throw new Error('Нельзя отвязать последний аккаунт. Сначала привяжите другой способ входа (MAX/Telegram).');
+        }
+        throw new Error(err || 'request_failed');
+      }
+      await refreshIdentities();
+    } catch (e: unknown) {
+      setIdentitiesError(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setIdentitiesBusy(false);
+    }
+  };
+
   const startLink = async (provider: IdentityProvider) => {
     setIdentitiesError(null);
     setLinkToken(null);
@@ -610,14 +638,15 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn-primary shrink-0"
-                  onClick={() => startLink('max')}
-                  disabled={linkBusy || identities.some((i) => i.provider === 'max')}
-                >
-                  {identities.some((i) => i.provider === 'max') ? 'Подключено' : linkBusy ? 'Генерирую…' : 'Подключить'}
-                </button>
+                {identities.some((i) => i.provider === 'max') ? (
+                  <button type="button" className="btn-secondary shrink-0" onClick={() => unlinkIdentity('max')} disabled={identitiesBusy}>
+                    Отвязать
+                  </button>
+                ) : (
+                  <button type="button" className="btn-primary shrink-0" onClick={() => startLink('max')} disabled={linkBusy}>
+                    {linkBusy ? 'Генерирую…' : 'Подключить'}
+                  </button>
+                )}
               </div>
 
               <div className="rounded-2xl border border-border/60 bg-background/40 p-4 flex items-start justify-between gap-3">
@@ -632,8 +661,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 {identities.some((i) => i.provider === 'telegram') ? (
-                  <button type="button" className="btn-secondary shrink-0" disabled={true}>
-                    Подключено
+                  <button type="button" className="btn-secondary shrink-0" onClick={() => unlinkIdentity('telegram')} disabled={identitiesBusy}>
+                    Отвязать
                   </button>
                 ) : (
                   <a className="btn-primary shrink-0" href="/tg-link">

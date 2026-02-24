@@ -88,7 +88,7 @@ export default function LandingPage() {
             <div className="flex justify-center mb-5">
               <div className="inline-flex flex-col items-center gap-1 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium text-center sm:flex-row sm:gap-2">
                 <Sparkles className="w-4 h-4 shrink-0" />
-                  Бесплатный доступ ко всем тренажёрам до 23 февраля
+                  Бесплатный доступ ко всем тренажёрам до 1 марта
               </div>
             </div>
 

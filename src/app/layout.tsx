@@ -11,6 +11,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
 
 import { VkPixel } from '../components/VkPixel';
+import { YandexMetrika } from '../components/YandexMetrika';
 
 export const metadata = {
   title: 'Тренажёры по математике',
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         {children}
         <VkPixel />
+        <YandexMetrika />
       </body>
     </html>
   );

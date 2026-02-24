@@ -40,7 +40,7 @@
     "dev:down": "bash ./infra/local/dev-down.sh",
     "dev": "pnpm exec next dev -p 3000",
     "shared:build": "pnpm -s -C packages/shared build",
-    "build": "pnpm exec next build",
+    "build": "pnpm -s exec prisma generate && pnpm exec next build",
     "start": "pnpm exec next start",
     "lint": "pnpm -s exec next lint"
   },

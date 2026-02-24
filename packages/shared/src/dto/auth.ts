@@ -165,4 +165,32 @@ export const AuthListIdentitiesResponseDtoSchema = z.object({
 });
 export type AuthListIdentitiesResponseDto = z.infer<typeof AuthListIdentitiesResponseDtoSchema>;
 
+/**
+ * WebApp login (MAX/Telegram/...)
+ *
+ * Used by mini-app entry pages (e.g. /max, /tg) to exchange signed initData
+ * for a first-party session cookie.
+ */
+
+export const AuthWebAppLoginRequestDtoSchema = z.object({
+  initData: z.string().min(1),
+  // Optional override (e.g. URL param "startapp"). The backend may fall back to initData.start_param.
+  startParam: z.string().trim().min(1).optional(),
+});
+export type AuthWebAppLoginRequestDto = z.infer<typeof AuthWebAppLoginRequestDtoSchema>;
+
+export const AuthBillingAccessDtoSchema = z.object({
+  ok: z.boolean(),
+  reason: z.enum(['admin', 'trial', 'paid', 'none']),
+});
+export type AuthBillingAccessDto = z.infer<typeof AuthBillingAccessDtoSchema>;
+
+export const AuthWebAppLoginResponseDtoSchema = z.object({
+  ok: z.literal(true),
+  redirectTo: z.string().min(1),
+  startParam: z.string().nullable().optional(),
+  access: AuthBillingAccessDtoSchema.optional(),
+});
+export type AuthWebAppLoginResponseDto = z.infer<typeof AuthWebAppLoginResponseDtoSchema>;
+
 

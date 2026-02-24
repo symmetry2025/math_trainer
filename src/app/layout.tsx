@@ -10,6 +10,8 @@ import '@fontsource/nunito/800.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
 
+import { VkPixel } from '../components/VkPixel';
+
 export const metadata = {
   title: 'Тренажёры по математике',
   description: 'Тренажёры по математике (демо)',
@@ -45,6 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <VkPixel />
       </body>
     </html>
   );

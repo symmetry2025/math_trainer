@@ -70,48 +70,50 @@ export async function POST(req: Request) {
   const now = new Date();
   const priceRub = getBillingPriceRub();
 
-  const user = await prisma.user.findUnique({
+  // IMPORTANT: we use AccountId = SubscriptionSeat.id (1 seat = 1 subscription).
+  const seat = await prisma.subscriptionSeat.findUnique({
     where: { id: accountId },
-    select: { id: true, email: true, cpSubscriptionId: true, billingStatus: true, paidUntil: true, trialEndsAt: true },
+    select: { id: true, parentId: true, cpSubscriptionId: true, status: true, paidUntil: true },
   });
-  if (!user) return NextResponse.json({ code: 0 }, { status: 200 });
+  if (!seat) return NextResponse.json({ code: 0 }, { status: 200 });
+  const parent = await prisma.user.findUnique({ where: { id: seat.parentId }, select: { id: true, email: true } });
+  if (!parent) return NextResponse.json({ code: 0 }, { status: 200 });
 
   const base = new Date(
     Math.max(
       now.getTime(),
-      user.paidUntil?.getTime() ?? 0,
-      user.trialEndsAt?.getTime() ?? 0,
+      seat.paidUntil?.getTime() ?? 0,
     ),
   );
   const paidUntil = addOneMonthUtc(base);
 
   // If this is a recurring payment for an existing subscription — just extend access.
-  if (subscriptionId || user.cpSubscriptionId) {
-    await prisma.user.update({
-      where: { id: user.id },
+  if (subscriptionId || seat.cpSubscriptionId) {
+    await prisma.subscriptionSeat.update({
+      where: { id: seat.id },
       data: {
-        billingStatus: 'active',
+        status: 'active',
         paidUntil,
         billingUpdatedAt: now,
         ...(subscriptionId ? { cpSubscriptionId: subscriptionId } : {}),
         ...(cardMask ? { cpCardMask: cardMask } : {}),
       },
     });
-    await markReferralFirstPaid(user.id, now);
+    await markReferralFirstPaid(parent.id, now);
     // eslint-disable-next-line no-console
-    console.log('[cp/webhook/pay] updated (extend)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
+    console.log('[cp/webhook/pay] updated (extend)', { seatId: seat.id, parentId: parent.id, paidUntil: paidUntil.toISOString() });
     return NextResponse.json({ code: 0 }, { status: 200 });
   }
 
   // Initial payment: create a subscription in CloudPayments using the token from Pay notification.
   if (!token) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, ...(cardMask ? { cpCardMask: cardMask } : {}) },
+    await prisma.subscriptionSeat.update({
+      where: { id: seat.id },
+      data: { status: 'active', paidUntil, billingUpdatedAt: now, ...(cardMask ? { cpCardMask: cardMask } : {}) },
     });
-    await markReferralFirstPaid(user.id, now);
+    await markReferralFirstPaid(parent.id, now);
     // eslint-disable-next-line no-console
-    console.log('[cp/webhook/pay] updated (no token)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
+    console.log('[cp/webhook/pay] updated (no token)', { seatId: seat.id, parentId: parent.id, paidUntil: paidUntil.toISOString() });
     return NextResponse.json({ code: 0 }, { status: 200 });
   }
 
@@ -121,8 +123,8 @@ export async function POST(req: Request) {
   try {
     const created = await cloudPaymentsCreateSubscription({
       token,
-      accountId: user.id,
-      email: email || user.email,
+      accountId: seat.id,
+      email: email || parent.email,
       description: `Подписка МатТренер — ${priceRub} ₽/мес`,
       amount: priceRub,
       currency: BILLING_CURRENCY,
@@ -132,10 +134,10 @@ export async function POST(req: Request) {
       period: 1,
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
+    await prisma.subscriptionSeat.update({
+      where: { id: seat.id },
       data: {
-        billingStatus: 'active',
+        status: 'active',
         paidUntil,
         billingUpdatedAt: now,
         cpSubscriptionId: created.id || null,
@@ -143,10 +145,11 @@ export async function POST(req: Request) {
         ...(cardMask ? { cpCardMask: cardMask } : {}),
       },
     });
-    await markReferralFirstPaid(user.id, now);
+    await markReferralFirstPaid(parent.id, now);
     // eslint-disable-next-line no-console
     console.log('[cp/webhook/pay] updated (subscription created)', {
-      accountId: user.id,
+      seatId: seat.id,
+      parentId: parent.id,
       cpSubscriptionId: created.id || null,
       paidUntil: paidUntil.toISOString(),
     });
@@ -154,13 +157,13 @@ export async function POST(req: Request) {
     // If subscription creation fails, still keep access (user has paid).
     // eslint-disable-next-line no-console
     console.error('[cp/webhook/pay] create subscription failed:', e);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { billingStatus: 'active', paidUntil, billingUpdatedAt: now, cpToken: token, ...(cardMask ? { cpCardMask: cardMask } : {}) },
+    await prisma.subscriptionSeat.update({
+      where: { id: seat.id },
+      data: { status: 'active', paidUntil, billingUpdatedAt: now, cpToken: token, ...(cardMask ? { cpCardMask: cardMask } : {}) },
     });
-    await markReferralFirstPaid(user.id, now);
+    await markReferralFirstPaid(parent.id, now);
     // eslint-disable-next-line no-console
-    console.log('[cp/webhook/pay] updated (subscription create failed)', { accountId: user.id, paidUntil: paidUntil.toISOString() });
+    console.log('[cp/webhook/pay] updated (subscription create failed)', { seatId: seat.id, parentId: parent.id, paidUntil: paidUntil.toISOString() });
   }
 
   return NextResponse.json({ code: 0 }, { status: 200 });

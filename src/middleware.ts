@@ -39,6 +39,9 @@ export function middleware(req: NextRequest) {
   if (
     pathname === '/' ||
     pathname === '/max' ||
+    pathname === '/tg' ||
+    pathname.startsWith('/tg-link') ||
+    pathname.startsWith('/link/provider') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/api') ||

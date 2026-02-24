@@ -24,16 +24,17 @@ export async function POST(req: Request) {
   const accountId = typeof body?.AccountId === 'string' ? body.AccountId.trim() : '';
   if (!accountId) return NextResponse.json({ code: 0 }, { status: 200 });
 
-  const user = await prisma.user.findUnique({ where: { id: accountId }, select: { id: true } });
-  if (!user) return NextResponse.json({ code: 0 }, { status: 200 });
+  // IMPORTANT: we use AccountId = SubscriptionSeat.id (1 seat = 1 subscription).
+  const seat = await prisma.subscriptionSeat.findUnique({ where: { id: accountId }, select: { id: true } });
+  if (!seat) return NextResponse.json({ code: 0 }, { status: 200 });
 
   const now = new Date();
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { billingStatus: 'past_due', billingUpdatedAt: now },
+  await prisma.subscriptionSeat.update({
+    where: { id: seat.id },
+    data: { status: 'past_due', billingUpdatedAt: now },
   });
   // eslint-disable-next-line no-console
-  console.log('[cp/webhook/fail] updated', { accountId: user.id, status: 'past_due' });
+  console.log('[cp/webhook/fail] updated', { seatId: seat.id, status: 'past_due' });
   return NextResponse.json({ code: 0 }, { status: 200 });
 }
 

@@ -76,23 +76,19 @@ export async function getEffectiveBillingAccessByUserId(userId: string): Promise
 
   if (u.role !== 'student') return { role: u.role, access: direct, viaParent: false, parentUserId: null };
 
-  const link = await prisma.parentStudentLink.findUnique({
-    where: { studentId: userId },
-    select: {
-      parentId: true,
-      parent: { select: { role: true, trialEndsAt: true, billingStatus: true, paidUntil: true } },
-    },
+  // Child access is granted only via an assigned subscription seat (1 seat = 1 child).
+  const seat = await prisma.subscriptionSeat.findUnique({
+    where: { assignedStudentId: userId },
+    select: { id: true, parentId: true, status: true, paidUntil: true },
   });
-  if (!link?.parent) return { role: u.role, access: direct, viaParent: false, parentUserId: null };
+  if (!seat) return { role: u.role, access: direct, viaParent: false, parentUserId: null };
 
-  const parentAccess = hasBillingAccess({
-    role: link.parent.role,
-    trialEndsAt: link.parent.trialEndsAt,
-    billingStatus: link.parent.billingStatus,
-    paidUntil: link.parent.paidUntil,
-  });
-  if (parentAccess.ok) return { role: u.role, access: { ok: true, reason: 'paid' }, viaParent: true, parentUserId: link.parentId };
+  const now = Date.now();
+  const paidUntilMs = seat.paidUntil ? seat.paidUntil.getTime() : 0;
+  const hasPaidUntil = Number.isFinite(paidUntilMs) && paidUntilMs > now;
+  const ok = hasPaidUntil || (seat.status === 'active' && !seat.paidUntil);
+  if (ok) return { role: u.role, access: { ok: true, reason: 'paid' }, viaParent: true, parentUserId: seat.parentId };
 
-  return { role: u.role, access: direct, viaParent: false, parentUserId: link.parentId };
+  return { role: u.role, access: direct, viaParent: false, parentUserId: seat.parentId };
 }
 

@@ -198,7 +198,7 @@ export async function POST(req: Request) {
         passwordHash,
         role: 'student',
         displayName,
-        emailVerifiedAt: now,
+        emailVerifiedAt: null,
         authProvider: 'web',
         onboardingCompletedAt: null,
       },

@@ -14,6 +14,7 @@ export async function GET() {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (me.role !== 'parent' && me.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (me.role !== 'admin' && !me.emailVerifiedAt) return NextResponse.json({ error: 'email_not_verified' }, { status: 403 });
 
   const now = new Date();
   const inv = await prisma.parentInvite.upsert({
@@ -30,6 +31,7 @@ export async function POST() {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (me.role !== 'parent' && me.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (me.role !== 'admin' && !me.emailVerifiedAt) return NextResponse.json({ error: 'email_not_verified' }, { status: 403 });
 
   const now = new Date();
   // Regenerate code.

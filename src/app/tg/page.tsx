@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AuthWebAppLoginResponseDtoSchema } from '@smmtry/shared';
+import { AuthProviderLinkRequestStartResponseDtoSchema, AuthWebAppLoginResponseDtoSchema } from '@smmtry/shared';
 
 type TelegramWebApp = {
   initData: string;
@@ -34,8 +34,9 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 export default function TelegramStartPage() {
-  const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [status, setStatus] = useState<'select' | 'loading' | 'error'>('select');
   const [error, setError] = useState<string | null>(null);
+  const [initData, setInitData] = useState<string>('');
 
   const webAppStartParam = useMemo(() => {
     if (typeof window === 'undefined') return '';
@@ -51,30 +52,11 @@ export default function TelegramStartPage() {
         if (cancelled) return;
         if (!window.Telegram?.WebApp?.initData) throw new Error('missing_init_data');
         window.Telegram.WebApp.ready();
-
-        const initData = window.Telegram.WebApp.initData;
-        const startParamFromBridge = String(window.Telegram.WebApp.initDataUnsafe?.start_param ?? '').trim();
-        const startParam = startParamFromBridge || webAppStartParam || '';
-
-        const res = await fetch('/api/auth/telegram', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'content-type': 'application/json', accept: 'application/json' },
-          body: JSON.stringify({ initData, startParam: startParam || undefined }),
-        });
-        const body: unknown = await res.json().catch(() => null);
-        if (cancelled) return;
-        if (!res.ok) {
-          const msg = isRecord(body) && typeof body.error === 'string' ? body.error : null;
-          throw new Error(msg || 'auth_failed');
-        }
-        const parsed = AuthWebAppLoginResponseDtoSchema.safeParse(body);
-        const redirectTo = parsed.success ? parsed.data.redirectTo : isRecord(body) && typeof body.redirectTo === 'string' ? body.redirectTo : '/';
-        window.location.replace(redirectTo);
+        setInitData(window.Telegram.WebApp.initData);
       } catch (e: unknown) {
         if (cancelled) return;
-        setStatus('error');
         setError(e instanceof Error ? e.message : 'unknown_error');
+        setStatus('error');
       }
     })();
     return () => {
@@ -82,10 +64,79 @@ export default function TelegramStartPage() {
     };
   }, [webAppStartParam]);
 
+  const continueInMiniApp = async () => {
+    setError(null);
+    setStatus('loading');
+    try {
+      const startParamFromBridge = String(window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? '').trim();
+      const startParam = startParamFromBridge || webAppStartParam || '';
+
+      const res = await fetch('/api/auth/telegram', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ initData, startParam: startParam || undefined }),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = isRecord(body) && typeof body.error === 'string' ? body.error : null;
+        throw new Error(msg || 'auth_failed');
+      }
+      const parsed = AuthWebAppLoginResponseDtoSchema.safeParse(body);
+      const redirectTo = parsed.success ? parsed.data.redirectTo : isRecord(body) && typeof body.redirectTo === 'string' ? body.redirectTo : '/';
+      window.location.replace(redirectTo);
+    } catch (e: unknown) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'unknown_error');
+    }
+  };
+
+  const openSiteToLink = async () => {
+    setError(null);
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/auth/provider-link-request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ provider: 'telegram', initData }),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = isRecord(body) && typeof body.error === 'string' ? body.error : null;
+        throw new Error(msg || 'link_request_failed');
+      }
+      const parsed = AuthProviderLinkRequestStartResponseDtoSchema.safeParse(body);
+      const req = parsed.success ? parsed.data.requestToken : isRecord(body) && typeof body.requestToken === 'string' ? body.requestToken : '';
+      if (!req) throw new Error('invalid_response');
+      const href = `${window.location.origin}/link/provider?req=${encodeURIComponent(req)}`;
+      window.location.assign(href);
+    } catch (e: unknown) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'unknown_error');
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 md:p-10">
       <div className="card-elevated p-6 md:p-8 max-w-md w-full text-center space-y-2">
-        {status === 'loading' ? (
+        {status === 'select' ? (
+          <>
+            <div className="text-lg font-bold">Вход через Telegram</div>
+            <div className="text-sm text-muted-foreground">
+              Если у вас уже есть аккаунт на сайте — сначала привяжите Telegram к нему. Иначе будет создан новый аккаунт.
+            </div>
+            <div className="pt-2 space-y-2">
+              <button type="button" className="btn-primary w-full" onClick={openSiteToLink} disabled={!initData}>
+                У меня есть аккаунт (привязать)
+              </button>
+              <button type="button" className="btn-secondary w-full" onClick={continueInMiniApp} disabled={!initData}>
+                У меня нет аккаунта (продолжить)
+              </button>
+            </div>
+            {error ? <div className="text-sm text-destructive pt-2">Ошибка: {error}</div> : null}
+          </>
+        ) : status === 'loading' ? (
           <>
             <div className="text-lg font-bold">Подключаем Telegram…</div>
             <div className="text-sm text-muted-foreground">Подождите несколько секунд</div>

@@ -5,6 +5,11 @@ import { prisma } from '../../../../lib/db';
 import { getCurrentUserOrNull } from '../../../../lib/auth';
 import { trialEndsAtFromNow } from '../../../../lib/billing';
 
+function isProviderLocalEmail(email: string): boolean {
+  const e = String(email || '').trim().toLowerCase();
+  return e.endsWith('@max.local') || e.endsWith('@telegram.local');
+}
+
 function normalizeRole(v: unknown): 'parent' | 'student' | null {
   const s = typeof v === 'string' ? v.trim() : '';
   if (s === 'parent' || s === 'student') return s;
@@ -29,12 +34,12 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: me.id },
-    select: { id: true, role: true, authProvider: true, onboardingCompletedAt: true, trialEndsAt: true, billingStatus: true, paidUntil: true },
+    select: { id: true, email: true, role: true, authProvider: true, onboardingCompletedAt: true, trialEndsAt: true, billingStatus: true, paidUntil: true },
   });
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  // For MAX-only onboarding in MVP.
-  if (user.authProvider !== 'max') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  // Provider-first onboarding only (MAX / Telegram local accounts).
+  if (user.authProvider !== 'max' && !isProviderLocalEmail(user.email)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (user.onboardingCompletedAt) return NextResponse.json({ ok: true, redirectTo: role === 'parent' ? '/settings' : '/settings' });
 
   const now = new Date();

@@ -33,21 +33,22 @@ export async function POST(req: Request) {
   const id = typeof body?.Id === 'string' ? body.Id.trim() : '';
   if (!accountId) return NextResponse.json({ code: 0 }, { status: 200 });
 
-  const user = await prisma.user.findUnique({ where: { id: accountId }, select: { id: true } });
-  if (!user) return NextResponse.json({ code: 0 }, { status: 200 });
+  // IMPORTANT: we use AccountId = SubscriptionSeat.id (1 seat = 1 subscription).
+  const seat = await prisma.subscriptionSeat.findUnique({ where: { id: accountId }, select: { id: true } });
+  if (!seat) return NextResponse.json({ code: 0 }, { status: 200 });
 
   const now = new Date();
   const status = mapStatus(body?.Status);
-  await prisma.user.update({
-    where: { id: user.id },
+  await prisma.subscriptionSeat.update({
+    where: { id: seat.id },
     data: {
-      billingStatus: status === 'none' ? 'none' : status,
+      status: status === 'none' ? 'none' : status,
       billingUpdatedAt: now,
       ...(id ? { cpSubscriptionId: id } : {}),
     },
   });
   // eslint-disable-next-line no-console
-  console.log('[cp/webhook/recurrent] updated', { accountId: user.id, status, cpSubscriptionId: id || null });
+  console.log('[cp/webhook/recurrent] updated', { seatId: seat.id, status, cpSubscriptionId: id || null });
 
   return NextResponse.json({ code: 0 }, { status: 200 });
 }

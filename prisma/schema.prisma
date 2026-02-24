@@ -67,6 +67,9 @@ model User {
   parentInvite ParentInvite?
   childLinks ParentStudentLink[] @relation("ParentToChildren")
   parentLink ParentStudentLink? @relation("StudentToParent")
+
+  subscriptionSeats SubscriptionSeat[] @relation("ParentToSubscriptionSeats")
+  assignedSeat SubscriptionSeat? @relation("StudentToSubscriptionSeat")
 }
 
 model AuthIdentity {
@@ -100,6 +103,50 @@ model AuthLinkToken {
   @@index([provider])
   @@index([expiresAt])
   @@index([usedAt])
+}
+
+model AuthProviderLinkRequest {
+  id             String           @id @default(cuid())
+  provider       IdentityProvider
+  providerUserId String
+
+  // One-time token to confirm linking from the web (after login).
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, providerUserId])
+  @@index([provider])
+  @@index([expiresAt])
+  @@index([usedAt])
+}
+
+model SubscriptionSeat {
+  id        String @id @default(cuid())
+  parentId  String
+  status    BillingSubscriptionStatus @default(none)
+  paidUntil DateTime?
+
+  cpSubscriptionId String?
+  cpToken          String?
+  cpCardMask       String?
+  billingUpdatedAt DateTime?
+
+  assignedStudentId String?  @unique
+  assignedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent         User  @relation("ParentToSubscriptionSeats", fields: [parentId], references: [id], onDelete: Cascade)
+  assignedStudent User? @relation("StudentToSubscriptionSeat", fields: [assignedStudentId], references: [id], onDelete: SetNull)
+
+  @@index([parentId])
+  @@index([status])
+  @@index([paidUntil])
+  @@index([billingUpdatedAt])
 }
 
 model Promoter {

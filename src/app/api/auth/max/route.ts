@@ -223,7 +223,7 @@ export async function POST(req: Request) {
         passwordHash,
         role: 'student',
         displayName,
-        emailVerifiedAt: now,
+        emailVerifiedAt: null,
         maxUserId,
         authProvider: 'max',
         onboardingCompletedAt: null,
@@ -251,12 +251,6 @@ export async function POST(req: Request) {
     },
   });
   if (!user) return NextResponse.json({ error: 'user_not_found' }, { status: 404 });
-
-  // Trust MAX user as verified identity for MVP.
-  if (!user.emailVerifiedAt) {
-    await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: now } }).catch(() => undefined);
-    user = { ...user, emailVerifiedAt: now };
-  }
 
   // If profile is empty — hydrate displayName from MAX.
   if (!user.displayName && displayName) {

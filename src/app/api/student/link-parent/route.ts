@@ -14,6 +14,7 @@ export async function POST(req: Request) {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (me.role !== 'student' && me.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (me.role !== 'admin' && !me.emailVerifiedAt) return NextResponse.json({ error: 'email_not_verified' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const code = normalizeCode(body?.code);

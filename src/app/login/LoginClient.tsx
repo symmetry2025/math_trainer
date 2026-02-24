@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const DEMO_STUDENT_EMAIL = 'demo.student@trainer.local';
 
@@ -18,9 +19,19 @@ function friendlyAuthError(code: unknown): string {
 }
 
 export default function LoginClient() {
+  const searchParams = useSearchParams();
+  const next = (() => {
+    const raw = (searchParams?.get('next') || '').trim();
+    if (!raw) return null;
+    if (!raw.startsWith('/')) return null;
+    if (raw.startsWith('//')) return null;
+    if (raw.startsWith('/login')) return null;
+    return raw;
+  })();
+
   const goNextByRole = (roleRaw: unknown) => {
     const role = typeof roleRaw === 'string' ? roleRaw : '';
-    const href =
+    const fallback =
       role === 'admin'
         ? '/admin/users'
         : role === 'promoter'
@@ -28,6 +39,7 @@ export default function LoginClient() {
           : role === 'parent'
             ? '/progress/stats'
             : '/class-2/addition';
+    const href = next ?? fallback;
     // Ensure middleware sees the fresh session cookie (hard navigation).
     window.location.assign(href);
   };

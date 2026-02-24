@@ -166,6 +166,41 @@ export const AuthListIdentitiesResponseDtoSchema = z.object({
 export type AuthListIdentitiesResponseDto = z.infer<typeof AuthListIdentitiesResponseDtoSchema>;
 
 /**
+ * Provider-first linking (mini-app → web).
+ *
+ * Flow:
+ * - mini-app sends signed initData to start a short-lived link request
+ * - user opens web `GET /link/provider?req=<requestToken>` and logs in
+ * - web confirms linking using the requestToken under the user session
+ */
+
+export const AuthProviderLinkRequestStartRequestDtoSchema = z.object({
+  provider: AuthIdentityProviderSchema,
+  initData: z.string().min(1),
+});
+export type AuthProviderLinkRequestStartRequestDto = z.infer<typeof AuthProviderLinkRequestStartRequestDtoSchema>;
+
+export const AuthProviderLinkRequestStartResponseDtoSchema = z.object({
+  ok: z.literal(true),
+  provider: AuthIdentityProviderSchema,
+  requestToken: z.string().min(10),
+  expiresAt: IsoDateTimeStringSchema,
+});
+export type AuthProviderLinkRequestStartResponseDto = z.infer<typeof AuthProviderLinkRequestStartResponseDtoSchema>;
+
+export const AuthProviderLinkConfirmRequestDtoSchema = z.object({
+  requestToken: z.string().min(10),
+});
+export type AuthProviderLinkConfirmRequestDto = z.infer<typeof AuthProviderLinkConfirmRequestDtoSchema>;
+
+export const AuthProviderLinkConfirmResponseDtoSchema = z.object({
+  ok: z.literal(true),
+  provider: AuthIdentityProviderSchema,
+  status: z.enum(['linked', 'already_linked']),
+});
+export type AuthProviderLinkConfirmResponseDto = z.infer<typeof AuthProviderLinkConfirmResponseDtoSchema>;
+
+/**
  * WebApp login (MAX/Telegram/...)
  *
  * Used by mini-app entry pages (e.g. /max, /tg) to exchange signed initData

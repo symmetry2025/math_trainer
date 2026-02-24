@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Copy } from 'lucide-react';
 
 import { AuthStartLinkTokenRequestDtoSchema, AuthStartLinkTokenResponseDtoSchema } from '@smmtry/shared';
@@ -13,8 +13,27 @@ export default function TelegramLinkPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<{ startParam: string; expiresAt: string } | null>(null);
+  const [botUsername, setBotUsername] = useState<string>('');
 
-  const botUsername = useMemo(() => String(process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || '').trim(), []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetch('/api/public-config', { method: 'GET', credentials: 'include', cache: 'no-store' });
+      const body: unknown = await res.json().catch(() => null);
+      if (cancelled) return;
+      const username =
+        isRecord(body) && typeof body.telegramBotUsername === 'string'
+          ? String(body.telegramBotUsername).trim()
+          : isRecord(body) && body.telegramBotUsername === null
+            ? ''
+            : '';
+      setBotUsername(username);
+    })().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const tgLink = token && botUsername ? `https://t.me/${encodeURIComponent(botUsername)}?startapp=${encodeURIComponent(token.startParam)}` : null;
 
   const start = async () => {

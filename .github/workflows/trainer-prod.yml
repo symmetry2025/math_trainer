@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     # GitHub validates `if:` expressions and does not allow `secrets.*` here.
     # Control deploy via repository variable VPS_DEPLOY_ENABLED=1.
-    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' }}
+    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' || vars.VPS_DEPLOY_ENABLED == '1' }}
     environment: prod
     steps:
       - name: Deploy to VPS (prod)
@@ -136,24 +136,12 @@ jobs:
               mv "$tmp" "$file"
             }
 
-            remove_env_var() {
-              local key="$1"
-              local file="$2"
-              local tmp
-              tmp="$(mktemp)"
-              if [[ -f "$file" ]]; then
-                grep -vE "^${key}=" "$file" > "$tmp" || true
-              fi
-              mv "$tmp" "$file"
-            }
-
             maybe_upsert_env_var() {
               local key="$1"
               local value="${2:-}"
               local file="$3"
               if [[ -z "$value" ]]; then
-                echo "[deploy] remove $key (empty)"
-                remove_env_var "$key" "$file"
+                echo "[deploy] skip $key (empty)"
                 return 0
               fi
               upsert_env_var "$key" "$value" "$file"
@@ -190,20 +178,12 @@ jobs:
             require_env_key() {
               local key="$1"
               local file="$2"
-              local line
-              line="$(grep -E "^${key}=" "$file" | head -n 1 || true)"
-              if [[ -z "$line" ]]; then
-                echo "[deploy] missing: $key" >&2
-                return 1
+              if grep -qE "^${key}=" "$file"; then
+                echo "[deploy] ok: $key is set"
+                return 0
               fi
-              local v="${line#*=}"
-              v="$(sanitize_env_value "$v")"
-              if [[ -z "$v" ]]; then
-                echo "[deploy] missing: $key (empty)" >&2
-                return 1
-              fi
-              echo "[deploy] ok: $key is set"
-              return 0
+              echo "[deploy] missing: $key" >&2
+              return 1
             }
 
             missing=0

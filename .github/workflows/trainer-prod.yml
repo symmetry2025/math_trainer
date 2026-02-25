@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     # GitHub validates `if:` expressions and does not allow `secrets.*` here.
     # Control deploy via repository variable VPS_DEPLOY_ENABLED=1.
-    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' }}
+    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' || vars.VPS_DEPLOY_ENABLED == '1' }}
     environment: prod
     steps:
       - name: Deploy to VPS (prod)

@@ -280,14 +280,28 @@ export default function LandingPage() {
 
       <footer className="py-8 border-t border-border">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
                 <Calculator className="w-4 h-4 text-primary-foreground" />
               </div>
               <span className="font-bold text-foreground">МатТренер</span>
             </div>
-            <div className="text-sm text-muted-foreground">© 2026 МатТренер. Все права защищены.</div>
+
+            <div className="text-sm text-muted-foreground md:text-right space-y-1">
+              <div className="font-semibold text-foreground">ИП Ткалич Антон Андреевич · ИНН 511005959339</div>
+              <div>г. Москва, ул. Левобережная, д. 4 корп. 18, кв. 130</div>
+              <div>
+                <a className="text-primary hover:underline" href="tel:+79017173385">
+                  +7 (901) 717-33-85
+                </a>
+                {' · '}
+                <a className="text-primary hover:underline" href="mailto:info@math-trainer.ru">
+                  info@math-trainer.ru
+                </a>
+              </div>
+              <div>© 2026 МатТренер. Все права защищены.</div>
+            </div>
           </div>
         </div>
       </footer>

@@ -5,10 +5,11 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Gem, LogOut, Menu, Minus, Moon, Plus, Settings, Sun, Trophy, User, Users, X } from 'lucide-react';
+import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Gem, Headphones, LogOut, Menu, Minus, Moon, Plus, Settings, Sun, Trophy, User, Users, X } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useCrystals } from '../lib/useCrystals';
+import { SupportModal } from '../components/SupportModal';
 
 type AuthState =
   | { status: 'loading' }
@@ -58,6 +59,7 @@ export function TrainerShell(props: { children: ReactNode }) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const [darkMode, setDarkMode] = useState<boolean | null>(null);
   const toggleDarkMode = () => {
@@ -256,6 +258,7 @@ export function TrainerShell(props: { children: ReactNode }) {
     () => [
       { group: 'Админка', label: 'Пользователи', href: '/admin/users', icon: Users },
       { group: 'Админка', label: 'Промоутеры', href: '/admin/promoters', icon: Users },
+      { group: 'Админка', label: 'Подписки', href: '/admin/subscriptions', icon: CreditCard },
     ],
     [],
   );
@@ -314,6 +317,13 @@ export function TrainerShell(props: { children: ReactNode }) {
     >
       {/* Mobile overlay */}
       {mobileOpen ? <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} /> : null}
+
+      <SupportModal
+        open={supportOpen}
+        onClose={() => {
+          setSupportOpen(false);
+        }}
+      />
 
       <aside
         className={cn(
@@ -595,6 +605,18 @@ export function TrainerShell(props: { children: ReactNode }) {
                   </div>
                 </div>
               ) : null}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSupportOpen(true);
+                }}
+                className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
+                title="Поддержка"
+                aria-label="Поддержка"
+              >
+                <Headphones className="w-5 h-5 text-muted-foreground" />
+              </button>
             </div>
           ) : (
             <>
@@ -691,6 +713,15 @@ export function TrainerShell(props: { children: ReactNode }) {
                   Подписка
                 </Link>
               ) : null}
+
+              <button
+                type="button"
+                onClick={() => setSupportOpen(true)}
+                className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors text-sm text-muted-foreground hover:text-foreground"
+              >
+                <Headphones className="w-4 h-4" />
+                Поддержка
+              </button>
             </>
           )}
         </div>

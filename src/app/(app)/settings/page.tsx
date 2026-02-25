@@ -77,6 +77,16 @@ function fmtDate(iso: string | null): string {
   }
 }
 
+function providerLabel(provider: IdentityProvider): string {
+  return provider === 'max' ? 'MAX' : 'Telegram';
+}
+
+function providerShortId(providerUserId?: string): string {
+  const s = String(providerUserId || '').trim();
+  if (!s) return '—';
+  return s.length > 16 ? `${s.slice(0, 6)}…${s.slice(-6)}` : s;
+}
+
 function isCloudPaymentsWidgetOpen(): boolean {
   if (typeof document === 'undefined') return false;
   // CloudPayments widget injects an overlay/iframe; keep checks broad to avoid coupling to internals.
@@ -174,34 +184,6 @@ export default function SettingsPage() {
     }
   };
 
-  const unlinkIdentity = async (provider: IdentityProvider) => {
-    setIdentitiesError(null);
-    setIdentitiesBusy(true);
-    try {
-      const ok = window.confirm('Отвязать аккаунт? Если это последний способ входа, вы можете потерять доступ.');
-      if (!ok) return;
-      const res = await fetch('/api/auth/identities', {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ provider }),
-      });
-      const body: unknown = await res.json().catch(() => null);
-      if (!res.ok) {
-        const err = isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null;
-        if (err === 'would_lock_out') {
-          throw new Error('Нельзя отвязать последний аккаунт. Сначала привяжите другой способ входа (MAX/Telegram).');
-        }
-        throw new Error(err || 'request_failed');
-      }
-      await refreshIdentities();
-    } catch (e: unknown) {
-      setIdentitiesError(e instanceof Error ? e.message : 'Ошибка');
-    } finally {
-      setIdentitiesBusy(false);
-    }
-  };
-
   const startLink = async (provider: IdentityProvider) => {
     setIdentitiesError(null);
     setLinkToken(null);
@@ -221,6 +203,36 @@ export default function SettingsPage() {
       setIdentitiesError(e instanceof Error ? e.message : 'Ошибка');
     } finally {
       setLinkBusy(false);
+    }
+  };
+
+  const unlinkIdentity = async (provider: IdentityProvider) => {
+    setIdentitiesError(null);
+    setIdentitiesBusy(true);
+    try {
+      const ok = window.confirm(`Отвязать ${providerLabel(provider)}? Если это последний способ входа, вы можете потерять доступ.`);
+      if (!ok) return;
+
+      const res = await fetch('/api/auth/identities', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ provider }),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const err = isRecord(body) && typeof (body as any).error === 'string' ? (body as any).error : null;
+        if (err === 'would_lock_out') {
+          throw new Error('Нельзя отвязать последний аккаунт. Сначала привяжите другой способ входа (MAX/Telegram).');
+        }
+        throw new Error(err || 'request_failed');
+      }
+
+      await refreshIdentities();
+    } catch (e: unknown) {
+      setIdentitiesError(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setIdentitiesBusy(false);
     }
   };
 
@@ -619,10 +631,8 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-bold">Связанные аккаунты</h2>
                 <div className="text-sm text-muted-foreground">Подключайте разные способы входа к одному аккаунту</div>
               </div>
-              <button type="button" className="btn-primary" onClick={refreshIdentities} disabled={identitiesBusy}>
-                {identitiesBusy ? '...' : 'Обновить'}
-              </button>
             </div>
+            <div className="text-xs text-muted-foreground">Чтобы обновить статус — обнови страницу.</div>
 
             {identitiesError ? <div className="text-sm text-destructive">{identitiesError}</div> : null}
 
@@ -637,6 +647,12 @@ export default function SettingsPage() {
                       {identities.some((i) => i.provider === 'max') ? 'подключен' : 'не подключен'}
                     </span>
                   </div>
+                  {identities.find((i) => i.provider === 'max') ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      ID: <span className="font-mono">{providerShortId(identities.find((i) => i.provider === 'max')?.providerUserId)}</span>
+                      {' · '}Привязан: <span className="font-semibold text-foreground">{fmtDate(identities.find((i) => i.provider === 'max')?.linkedAt ?? null)}</span>
+                    </div>
+                  ) : null}
                 </div>
                 {identities.some((i) => i.provider === 'max') ? (
                   <button type="button" className="btn-secondary shrink-0" onClick={() => unlinkIdentity('max')} disabled={identitiesBusy}>
@@ -659,6 +675,12 @@ export default function SettingsPage() {
                       {identities.some((i) => i.provider === 'telegram') ? 'подключен' : 'не подключен'}
                     </span>
                   </div>
+                  {identities.find((i) => i.provider === 'telegram') ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      ID: <span className="font-mono">{providerShortId(identities.find((i) => i.provider === 'telegram')?.providerUserId)}</span>
+                      {' · '}Привязан: <span className="font-semibold text-foreground">{fmtDate(identities.find((i) => i.provider === 'telegram')?.linkedAt ?? null)}</span>
+                    </div>
+                  ) : null}
                 </div>
                 {identities.some((i) => i.provider === 'telegram') ? (
                   <button type="button" className="btn-secondary shrink-0" onClick={() => unlinkIdentity('telegram')} disabled={identitiesBusy}>
@@ -666,7 +688,7 @@ export default function SettingsPage() {
                   </button>
                 ) : (
                   <a className="btn-primary shrink-0" href="/tg-link">
-                    Привязать
+                    Подключить
                   </a>
                 )}
               </div>
@@ -709,7 +731,7 @@ export default function SettingsPage() {
                   </a>
                 ) : null}
 
-                <div className="text-xs text-muted-foreground">Шаг 3. Вернись сюда и нажми «Обновить».</div>
+                <div className="text-xs text-muted-foreground">Шаг 3. Вернись сюда и обнови страницу «Настройки».</div>
               </div>
             ) : null}
           </div>
@@ -723,10 +745,8 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-bold">Семья</h2>
                 <div className="text-sm text-muted-foreground">Привяжись к родителю по коду, чтобы продолжить после пробного периода</div>
               </div>
-              <button type="button" className="btn-primary" onClick={refreshStudentFamily} disabled={studentFamilyBusy}>
-                Обновить
-              </button>
             </div>
+            <div className="text-xs text-muted-foreground">Чтобы обновить данные — обнови страницу.</div>
 
             {studentFamilyInfo ? <div className="text-sm text-foreground">{studentFamilyInfo}</div> : null}
             {studentFamilyError ? <div className="text-sm text-destructive">{studentFamilyError}</div> : null}
@@ -770,10 +790,8 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-bold">Дети</h2>
                 <div className="text-sm text-muted-foreground">Подписка оформляется здесь (у родителя) и даёт доступ привязанным детям</div>
               </div>
-              <button type="button" className="btn-primary" onClick={refreshParentFamily} disabled={parentFamilyBusy}>
-                Обновить
-              </button>
             </div>
+            <div className="text-xs text-muted-foreground">Чтобы обновить данные — обнови страницу.</div>
 
             {parentFamilyError ? <div className="text-sm text-destructive">{parentFamilyError}</div> : null}
 
@@ -800,7 +818,7 @@ export default function SettingsPage() {
                   className="h-10 w-10 rounded-2xl border border-input bg-background hover:bg-muted transition-colors flex items-center justify-center disabled:opacity-60"
                   onClick={regenerateParentInvite}
                   disabled={parentFamilyBusy}
-                  title="Обновить код"
+                  title="Сгенерировать новый код"
                 >
                   <RotateCw className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -853,10 +871,8 @@ export default function SettingsPage() {
               <div>
                 <h2 className="text-lg font-bold">Подписка</h2>
               </div>
-              <button type="button" className="btn-primary" onClick={refreshBilling} disabled={billingBusy}>
-                Обновить
-              </button>
             </div>
+            <div className="text-xs text-muted-foreground">Чтобы обновить статус — обнови страницу.</div>
 
             {billingInfo ? <div className="text-sm text-foreground">{billingInfo}</div> : null}
             {billingError ? <div className="text-sm text-destructive">{billingError}</div> : null}

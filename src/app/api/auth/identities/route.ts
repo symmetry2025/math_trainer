@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { AuthListIdentitiesResponseDtoSchema, AuthUnlinkIdentityRequestDtoSchema, AuthUnlinkIdentityResponseDtoSchema } from '@smmtry/shared';
-import type { IdentityProvider } from '@prisma/client';
 
 import { prisma } from '../../../../lib/db';
 import { getCurrentUserOrNull } from '../../../../lib/auth';
 
 function asIsoOrNull(d: Date | null): string | null {
   return d ? d.toISOString() : null;
+}
+
+function isProviderLocalEmail(email: string): boolean {
+  const e = String(email || '').trim().toLowerCase();
+  return e.endsWith('@max.local') || e.endsWith('@telegram.local');
 }
 
 export async function GET() {
@@ -44,16 +48,6 @@ export async function GET() {
   return NextResponse.json(dto);
 }
 
-function isProviderLocalEmail(email: string): boolean {
-  const e = String(email || '').trim().toLowerCase();
-  return e.endsWith('@telegram.local') || e.endsWith('@max.local');
-}
-
-function asDbProvider(p: string): Extract<IdentityProvider, 'telegram' | 'max'> | null {
-  const v = String(p || '').trim();
-  return v === 'telegram' || v === 'max' ? (v as Extract<IdentityProvider, 'telegram' | 'max'>) : null;
-}
-
 export async function DELETE(req: Request) {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -61,32 +55,48 @@ export async function DELETE(req: Request) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = AuthUnlinkIdentityRequestDtoSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
-  const provider = asDbProvider(parsed.data.provider);
-  if (!provider) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 
-  const ids = await prisma.authIdentity.findMany({
-    where: { userId: me.id },
-    select: { provider: true },
-  });
+  const provider = parsed.data.provider;
+  const dbProvider = provider === 'max' ? ('max' as const) : ('telegram' as const);
 
-  const hasThis = ids.some((i) => i.provider === provider);
-  if (!hasThis) {
+  const now = new Date();
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const identities = await tx.authIdentity.findMany({
+        where: { userId: me.id },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, provider: true },
+      });
+
+      const toRemove = identities.find((i) => i.provider === dbProvider) || null;
+      if (!toRemove) return;
+
+      // Do not allow removing the last way to sign in:
+      // - if the user has a non-provider-local email (regular web account), "password" remains a login method.
+      // - otherwise, require at least one other AuthIdentity to remain.
+      const hasPasswordMethod = !isProviderLocalEmail(me.email);
+      const otherIdentitiesCount = identities.filter((i) => i.id !== toRemove.id).length;
+      if (!hasPasswordMethod && otherIdentitiesCount === 0) {
+        throw new Error('would_lock_out');
+      }
+
+      await tx.authIdentity.delete({ where: { id: toRemove.id } });
+
+      // Best-effort: if we removed MAX identity, clear legacy user.maxUserId too.
+      if (dbProvider === 'max') {
+        await tx.user.update({ where: { id: me.id }, data: { maxUserId: null, updatedAt: now } }).catch(() => undefined);
+      }
+    });
+
     const dto = AuthUnlinkIdentityResponseDtoSchema.parse({ ok: true, provider });
     return NextResponse.json(dto);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '';
+    if (msg === 'would_lock_out') return NextResponse.json({ error: 'would_lock_out' }, { status: 409 });
+    // eslint-disable-next-line no-console
+    console.error('[auth/identities] unlink failed:', e);
+    return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
-
-  // Safety: do not allow unlinking the last identity for provider-local accounts
-  // (user would lose the ability to login).
-  if (me.role !== 'admin' && isProviderLocalEmail(me.email)) {
-    const others = ids.some((i) => (i.provider === 'telegram' || i.provider === 'max') && i.provider !== provider);
-    if (!others) return NextResponse.json({ error: 'would_lock_out' }, { status: 409 });
-  }
-
-  await prisma.authIdentity.deleteMany({
-    where: { userId: me.id, provider },
-  });
-
-  const dto = AuthUnlinkIdentityResponseDtoSchema.parse({ ok: true, provider });
-  return NextResponse.json(dto);
 }
 

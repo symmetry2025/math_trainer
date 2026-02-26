@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     # GitHub validates `if:` expressions and does not allow `secrets.*` here.
     # Control deploy via repository variable VPS_DEPLOY_ENABLED=1.
-    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' || vars.VPS_DEPLOY_ENABLED == '1' }}
+    if: ${{ vars.VPS_DEPLOY_ENABLED == '1' }}
     environment: staging
     steps:
       - name: Deploy to VPS (staging)
@@ -191,7 +191,32 @@ jobs:
               exit 1
             fi
 
-            docker compose -f compose.yml pull
-            docker compose -f compose.yml up -d --force-recreate app
-            docker compose -f compose.yml ps
+            # Enforce docker network MTU=1450 (fixes TLS timeouts for SMTP from inside containers).
+            MTU_OVERLAY="./compose.mtu.yml"
+            cat > "$MTU_OVERLAY" <<'YAML'
+            networks:
+              default:
+                driver: bridge
+                driver_opts:
+                  com.docker.network.driver.mtu: "1450"
+            YAML
+
+            PROJECT="$(basename "$PWD")"
+            NET="${PROJECT}_default"
+            NET_ID12=""
+            if docker network inspect "$NET" >/dev/null 2>&1; then
+              NET_ID12="$(docker network inspect "$NET" --format '{{slice .Id 0 12}}' 2>/dev/null || true)"
+            fi
+            NET_MTU=""
+            if [[ -n "$NET_ID12" ]]; then
+              NET_MTU="$(ip -o link show "br-$NET_ID12" 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="mtu") {print $(i+1); exit}}' || true)"
+            fi
+            if [[ "$NET_MTU" != "1450" ]]; then
+              echo "[deploy] docker network $NET mtu=${NET_MTU:-unknown}; recreating to apply mtu=1450"
+              APP_TAG="staging" docker compose -f compose.yml -f "$MTU_OVERLAY" down || true
+            fi
+
+            APP_TAG="staging" docker compose -f compose.yml -f "$MTU_OVERLAY" pull
+            APP_TAG="staging" docker compose -f compose.yml -f "$MTU_OVERLAY" up -d --force-recreate app
+            APP_TAG="staging" docker compose -f compose.yml -f "$MTU_OVERLAY" ps
 

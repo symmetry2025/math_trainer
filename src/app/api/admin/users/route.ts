@@ -22,6 +22,11 @@ export async function GET() {
       paidUntil: true,
       cpSubscriptionId: true,
       billingUpdatedAt: true,
+      lastLoginAt: true,
+      lastSeenAt: true,
+      lastSeenPath: true,
+      lastTrainerAt: true,
+      lastTrainerId: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -36,6 +41,9 @@ export async function GET() {
       trialEndsAt: u.trialEndsAt ? u.trialEndsAt.toISOString() : null,
       paidUntil: u.paidUntil ? u.paidUntil.toISOString() : null,
       billingUpdatedAt: u.billingUpdatedAt ? u.billingUpdatedAt.toISOString() : null,
+      lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+      lastSeenAt: u.lastSeenAt ? u.lastSeenAt.toISOString() : null,
+      lastTrainerAt: u.lastTrainerAt ? u.lastTrainerAt.toISOString() : null,
     })),
   });
 }

@@ -49,6 +49,11 @@ model User {
   cpToken      String?
   cpCardMask   String?
   billingUpdatedAt DateTime?
+  lastLoginAt  DateTime?
+  lastSeenAt   DateTime?
+  lastSeenPath String?
+  lastTrainerAt DateTime?
+  lastTrainerId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -70,6 +75,10 @@ model User {
 
   subscriptionSeats SubscriptionSeat[] @relation("ParentToSubscriptionSeats")
   assignedSeat SubscriptionSeat? @relation("StudentToSubscriptionSeat")
+
+  @@index([lastLoginAt])
+  @@index([lastSeenAt])
+  @@index([lastTrainerAt])
 }
 
 model AuthIdentity {

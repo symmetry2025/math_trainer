@@ -16,9 +16,96 @@ type UserDto = {
   cpSubscriptionId: string | null;
   cpCardMask: string | null;
   billingUpdatedAt: string | null;
+  lastLoginAt: string | null;
+  lastSeenAt: string | null;
+  lastSeenPath: string | null;
+  lastTrainerAt: string | null;
+  lastTrainerId: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+type AttemptRow = {
+  trainerId: string;
+  kind: string;
+  level: string;
+  createdAt: string;
+  result: unknown;
+};
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
+}
+
+function asNum(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+function asBool(v: unknown): boolean | null {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'y', 'on'].includes(s)) return true;
+    if (['0', 'false', 'no', 'n', 'off'].includes(s)) return false;
+  }
+  return null;
+}
+
+function fmtTimeSec(v: number | null): string | null {
+  if (v === null) return null;
+  const sec = Math.max(0, Math.floor(v));
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}m ${String(s).padStart(2, '0')}s`;
+}
+
+function formatAttemptResult(a: AttemptRow): { title: string; details: string | null } {
+  const r = asRecord(a.result);
+  if (!r) return { title: '—', details: null };
+
+  const total = asNum(r.total);
+  const mistakes = asNum(r.mistakes);
+  const time = asNum(r.time);
+
+  if (a.kind === 'column') {
+    const solved = asNum(r.solved);
+    const success = asBool(r.success);
+    const stars = asNum(r.stars);
+    const titleParts: string[] = [];
+    if (solved !== null || total !== null) titleParts.push(`${solved ?? '—'}/${total ?? '—'}`);
+    if (success !== null) titleParts.push(success ? 'успех' : 'неуспех');
+    const title = titleParts.length ? titleParts.join(' • ') : 'column';
+
+    const detailsParts: string[] = [];
+    if (mistakes !== null) detailsParts.push(`ошибки: ${Math.floor(mistakes)}`);
+    const t = fmtTimeSec(time);
+    if (t) detailsParts.push(`время: ${t}`);
+    if (stars !== null) detailsParts.push(`звёзды: ${Math.floor(stars)}`);
+    return { title, details: detailsParts.length ? detailsParts.join(' • ') : null };
+  }
+
+  if (a.kind === 'mental' || a.kind === 'drill') {
+    const correct = asNum(r.correct);
+    const won = asBool(r.won);
+    const starLevel = asNum(r.starLevel);
+    const titleParts: string[] = [];
+    if (correct !== null || total !== null) titleParts.push(`${correct ?? '—'}/${total ?? '—'}`);
+    if (won !== null) titleParts.push(won ? 'победа' : 'поражение');
+    const title = titleParts.length ? titleParts.join(' • ') : a.kind;
+
+    const detailsParts: string[] = [];
+    if (mistakes !== null) detailsParts.push(`ошибки: ${Math.floor(mistakes)}`);
+    const t = fmtTimeSec(time);
+    if (t) detailsParts.push(`время: ${t}`);
+    if (starLevel !== null) detailsParts.push(`ур. звёзд: ${Math.floor(starLevel)}`);
+    return { title, details: detailsParts.length ? detailsParts.join(' • ') : null };
+  }
+
+  const fallbackTitle = typeof r.trainerId === 'string' ? r.trainerId : a.kind || 'attempt';
+  return { title: fallbackTitle, details: null };
+}
 
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return '';
@@ -84,6 +171,7 @@ export default function AdminUserPage() {
   const id = useMemo(() => String(params?.id || '').trim(), [params]);
 
   const [u, setU] = useState<UserDto | null>(null);
+  const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +203,8 @@ export default function AdminUserPage() {
         }
         const user = isRecord(body) && isRecord(body.user) ? (body.user as UserDto) : null;
         setU(user);
+        const list = isRecord(body) && Array.isArray((body as any).recentTrainerAttempts) ? ((body as any).recentTrainerAttempts as AttemptRow[]) : [];
+        setAttempts(list);
         setEmail(String(user?.email ?? ''));
         setDisplayName(String(user?.displayName ?? ''));
         setRole(pickRole(user?.role));
@@ -234,6 +324,27 @@ export default function AdminUserPage() {
 
         {!busy && u ? (
           <div className="card-elevated p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="rounded-2xl border border-border/60 bg-card px-4 py-3">
+                <div className="text-muted-foreground text-xs">Последний логин</div>
+                <div className="tabular-nums">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : '—'}</div>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card px-4 py-3">
+                <div className="text-muted-foreground text-xs">Последний заход в кабинет</div>
+                <div className="tabular-nums">{u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString() : '—'}</div>
+                {u.lastSeenPath ? <div className="text-xs text-muted-foreground mt-1">{u.lastSeenPath}</div> : null}
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card px-4 py-3">
+                <div className="text-muted-foreground text-xs">Последняя активность (тренажёры)</div>
+                <div className="tabular-nums">{u.lastTrainerAt ? new Date(u.lastTrainerAt).toLocaleString() : '—'}</div>
+                {u.lastTrainerId ? <div className="text-xs text-muted-foreground mt-1">{u.lastTrainerId}</div> : null}
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-card px-4 py-3">
+                <div className="text-muted-foreground text-xs">Попыток (последние 50)</div>
+                <div className="tabular-nums">{attempts.length}</div>
+              </div>
+            </div>
+
             <div className="grid gap-4">
               <label className="block text-sm font-medium">
                 Email
@@ -440,6 +551,58 @@ export default function AdminUserPage() {
               <button type="button" className="btn-primary" onClick={save} disabled={saving}>
                 {saving ? '...' : 'Сохранить'}
               </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold">Активность по тренажёрам</h2>
+                  <p className="text-sm text-muted-foreground">Последние 50 попыток</p>
+                </div>
+              </div>
+              <div className="card-elevated overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[900px] w-full text-sm">
+                    <thead className="bg-muted/40">
+                      <tr className="text-left">
+                        <th className="px-4 py-3 font-semibold">Когда</th>
+                        <th className="px-4 py-3 font-semibold">Trainer ID</th>
+                        <th className="px-4 py-3 font-semibold">Kind</th>
+                        <th className="px-4 py-3 font-semibold">Level</th>
+                        <th className="px-4 py-3 font-semibold">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attempts.map((a, idx) => (
+                        <tr key={idx} className="border-t border-border/50">
+                          <td className="px-4 py-3 tabular-nums text-muted-foreground">{new Date(a.createdAt).toLocaleString()}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{a.trainerId}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{a.kind}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{a.level}</td>
+                          <td className="px-4 py-3">
+                            {(() => {
+                              const f = formatAttemptResult(a);
+                              return (
+                                <div className="space-y-0.5">
+                                  <div className="font-semibold tabular-nums">{f.title}</div>
+                                  {f.details ? <div className="text-xs text-muted-foreground">{f.details}</div> : null}
+                                </div>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+                      ))}
+                      {!attempts.length ? (
+                        <tr>
+                          <td className="px-4 py-6 text-muted-foreground" colSpan={5}>
+                            Нет попыток
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         ) : null}

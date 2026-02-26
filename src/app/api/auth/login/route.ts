@@ -41,12 +41,18 @@ export async function POST(req: Request) {
 
     if (!user.emailVerifiedAt) return NextResponse.json({ error: 'email_not_verified' }, { status: 403 });
 
+    const now = new Date();
+
     // Honest trial: start on the first successful login.
     if (user.role !== 'admin' && !user.trialEndsAt && user.billingStatus === 'none' && !user.paidUntil) {
-      const now = new Date();
       await prisma.user.update({
         where: { id: user.id },
-        data: { trialEndsAt: trialEndsAtFromNow(now), billingUpdatedAt: now },
+        data: { trialEndsAt: trialEndsAtFromNow(now), billingUpdatedAt: now, lastLoginAt: now, lastSeenAt: now },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: now, lastSeenAt: now },
       });
     }
 

@@ -12,6 +12,11 @@ type UserRow = {
   trialEndsAt: string | null;
   billingStatus: 'none' | 'active' | 'past_due' | 'cancelled';
   paidUntil: string | null;
+  lastLoginAt: string | null;
+  lastSeenAt: string | null;
+  lastSeenPath: string | null;
+  lastTrainerAt: string | null;
+  lastTrainerId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -103,6 +108,8 @@ export default function AdminUsersPage() {
                     <th className="px-4 py-3 font-semibold">Роль</th>
                     <th className="px-4 py-3 font-semibold">Почта</th>
                     <th className="px-4 py-3 font-semibold">Биллинг</th>
+                    <th className="px-4 py-3 font-semibold">Последний заход</th>
+                    <th className="px-4 py-3 font-semibold">Тренажёры</th>
                     <th className="px-4 py-3 font-semibold">Создан</th>
                     <th className="px-4 py-3 font-semibold">ID</th>
                   </tr>
@@ -127,13 +134,33 @@ export default function AdminUsersPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">{billingBadge(u)}</td>
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                        {u.lastSeenAt ? (
+                          <div className="space-y-0.5">
+                            <div>{new Date(u.lastSeenAt).toLocaleString()}</div>
+                            {u.lastSeenPath ? <div className="text-xs text-muted-foreground">{u.lastSeenPath}</div> : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                        {u.lastTrainerAt ? (
+                          <div className="space-y-0.5">
+                            <div>{new Date(u.lastTrainerAt).toLocaleString()}</div>
+                            {u.lastTrainerId ? <div className="text-xs text-muted-foreground">{u.lastTrainerId}</div> : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 tabular-nums text-muted-foreground">{new Date(u.createdAt).toLocaleString()}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{u.id}</td>
                     </tr>
                   ))}
                   {!filtered.length ? (
                     <tr>
-                      <td className="px-4 py-6 text-muted-foreground" colSpan={7}>
+                      <td className="px-4 py-6 text-muted-foreground" colSpan={9}>
                         Ничего не найдено
                       </td>
                     </tr>

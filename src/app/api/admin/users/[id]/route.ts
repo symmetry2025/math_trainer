@@ -40,11 +40,23 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       cpSubscriptionId: true,
       cpCardMask: true,
       billingUpdatedAt: true,
+      lastLoginAt: true,
+      lastSeenAt: true,
+      lastSeenPath: true,
+      lastTrainerAt: true,
+      lastTrainerId: true,
       createdAt: true,
       updatedAt: true,
     },
   });
   if (!user) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+
+  const attempts = await prisma.trainerAttempt.findMany({
+    where: { userId: id },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: { trainerId: true, kind: true, level: true, createdAt: true, result: true },
+  });
 
   return NextResponse.json({
     user: {
@@ -55,7 +67,17 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
       trialEndsAt: user.trialEndsAt ? user.trialEndsAt.toISOString() : null,
       paidUntil: user.paidUntil ? user.paidUntil.toISOString() : null,
       billingUpdatedAt: user.billingUpdatedAt ? user.billingUpdatedAt.toISOString() : null,
+      lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+      lastSeenAt: user.lastSeenAt ? user.lastSeenAt.toISOString() : null,
+      lastTrainerAt: user.lastTrainerAt ? user.lastTrainerAt.toISOString() : null,
     },
+    recentTrainerAttempts: attempts.map((a) => ({
+      trainerId: a.trainerId,
+      kind: a.kind,
+      level: a.level,
+      createdAt: a.createdAt.toISOString(),
+      result: a.result,
+    })),
   });
 }
 

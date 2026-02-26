@@ -62,6 +62,7 @@ export async function POST(req: Request) {
   const kind = body.kind;
   const level = body.level;
   const attemptId = typeof (body as any).attemptId === 'string' && String((body as any).attemptId).trim() ? String((body as any).attemptId).trim() : null;
+  const now = new Date();
 
   // Validate drill trainer ids early (avoid polluting attempts table)
   if (kind === 'drill') {
@@ -101,6 +102,12 @@ export async function POST(req: Request) {
         }
         throw e;
       }
+
+      // Activity tracking (admin UX): keep last trainer activity on the user.
+      await tx.user.update({
+        where: { id: user.id },
+        data: { lastTrainerAt: now, lastTrainerId: trainerId, lastSeenAt: now },
+      });
 
       // 2) Update per-trainer progress (unlocks/stars)
       const existingProgressRow = await tx.trainerProgress.findUnique({

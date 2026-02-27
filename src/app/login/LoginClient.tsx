@@ -236,10 +236,9 @@ export default function LoginClient() {
         setError(friendlyAuthError(body?.error || body?.message));
         return;
       }
-      setInfo('Мы отправили код на почту. Введи его ниже.');
       const devCode = typeof body?.devCode === 'string' ? body.devCode : '';
       setEmailCode(devCode ? String(devCode).trim().toUpperCase() : '');
-      switchView('registerParentCode', { force: true, keepInfo: true });
+      switchView('registerParentCode', { force: true });
     } catch {
       setError('Ошибка сети');
     } finally {
@@ -264,10 +263,9 @@ export default function LoginClient() {
         setError(friendlyAuthError(body?.error || body?.message));
         return;
       }
-      setInfo('Почта подтверждена. Теперь придумай пароль.');
       setPassword('');
       setPasswordConfirm('');
-      switchView('registerParentPassword', { force: true, keepInfo: true });
+      switchView('registerParentPassword', { force: true });
     } catch {
       setError('Ошибка сети');
     } finally {
@@ -329,12 +327,23 @@ export default function LoginClient() {
     view === 'registerParentPassword'
       ? 'Почта подтверждена. Теперь придумай пароль.'
       : null;
+  const headerAlign = subtitle ? 'items-start' : 'items-center';
 
   const authBtnBase =
     'w-full h-12 rounded-2xl px-6 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
   const authBtnPrimary = `${authBtnBase} btn-primary`;
   const authBtnAccent = `${authBtnBase} btn-accent`;
   const authBtnGhost = `${authBtnBase} btn-ghost`;
+  const authBtnPlain = 'w-full text-sm btn-plain disabled:opacity-50 disabled:cursor-not-allowed';
+
+  const regStep =
+    view === 'registerRole'
+      ? 1
+      : view === 'registerParentDetails' || view === 'registerParentCode'
+        ? 2
+        : view === 'registerParentPassword' || view === 'registerStudent'
+          ? 3
+          : null;
 
   const passwordReq = useMemo(() => {
     const pw = password || '';
@@ -380,9 +389,16 @@ export default function LoginClient() {
     <div className="min-h-screen flex items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-md">
         <div className={cardClass}>
-          <div>
-            <h1 className="text-2xl font-extrabold">{title}</h1>
-            {subtitle ? <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div> : null}
+          <div className={`flex ${headerAlign} justify-between gap-3`}>
+            <div>
+              <h1 className="text-2xl font-extrabold">{title}</h1>
+              {subtitle ? <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div> : null}
+            </div>
+            {regStep ? (
+              <div className="shrink-0 rounded-2xl border border-border/60 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                Шаг {regStep} из 3
+              </div>
+            ) : null}
           </div>
 
           {view === 'registerRole' ? (
@@ -453,7 +469,7 @@ export default function LoginClient() {
             </div>
           ) : view === 'registerParentCode' ? (
             <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">Введи код из письма</div>
+              <div className="text-sm text-muted-foreground">Мы отправили код на почту. Введи его ниже.</div>
               <label className="block text-sm font-medium">
                 Код
                 <input
@@ -465,7 +481,7 @@ export default function LoginClient() {
                   inputMode="text"
                 />
               </label>
-              <button type="button" className={authBtnGhost} onClick={requestParentEmailCode} disabled={busy || !email.trim()}>
+              <button type="button" className={authBtnPlain} onClick={requestParentEmailCode} disabled={busy || !email.trim()}>
                 Отправить код ещё раз
               </button>
             </div>
@@ -631,7 +647,7 @@ export default function LoginClient() {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className={authBtnPlain}
                 onClick={() => {
                   setForgotEmail((email || '').trim());
                   switchView('forgot');
@@ -644,7 +660,7 @@ export default function LoginClient() {
               {needResendConfirm ? (
                 <button
                   type="button"
-                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className={authBtnPlain}
                   onClick={resendConfirm}
                   disabled={busy || !email}
                 >
@@ -658,7 +674,7 @@ export default function LoginClient() {
             {view !== 'login' ? (
               <button
                 type="button"
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className={authBtnPlain}
                 onClick={() => switchView('login')}
               >
                 Уже есть аккаунт? Войти
@@ -666,7 +682,7 @@ export default function LoginClient() {
             ) : (
               <button
                 type="button"
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className={authBtnPlain}
                 onClick={() => switchView('registerRole')}
               >
                 Нет аккаунта? Зарегистрироваться

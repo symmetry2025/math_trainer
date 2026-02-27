@@ -194,6 +194,10 @@
     @apply border border-border/60 bg-transparent text-foreground hover:bg-muted transition-colors;
   }
 
+  .btn-plain {
+    @apply text-muted-foreground hover:text-foreground transition-colors;
+  }
+
   .number-selector {
     @apply flex items-center justify-center w-12 h-12 rounded-xl font-bold text-lg transition-all duration-200 cursor-pointer select-none;
   }

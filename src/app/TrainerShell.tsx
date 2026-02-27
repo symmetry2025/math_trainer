@@ -641,9 +641,7 @@ export function TrainerShell(props: { children: ReactNode }) {
                   <p className="text-sm font-medium text-sidebar-foreground truncate">
                     {auth.status === 'authed'
                       ? (auth.user.displayName || '').trim() || auth.user.email || auth.user.id
-                      : auth.status === 'loading'
-                        ? 'Загрузка…'
-                        : 'Гость'}
+                      : 'Гость'}
                   </p>
                   {auth.status === 'authed' ? (
                     <div className="flex items-center gap-2">

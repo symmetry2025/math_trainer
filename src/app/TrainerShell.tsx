@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Gem, LogOut, Menu, Minus, Moon, Plus, Settings, Sun, Trophy, User, Users, X } from 'lucide-react';
+import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Home, LogOut, Menu, Minus, Orbit, Plus, Rocket, Settings, Star, Trophy, User, Users, X } from 'lucide-react';
 
 import { cn } from '../lib/utils';
-import { useCrystals } from '../lib/useCrystals';
+import { useStars } from '../lib/useStars';
 
 type AuthState =
   | { status: 'loading' }
@@ -25,24 +25,6 @@ function roleRu(role: string | null | undefined): string {
   return r || '—';
 }
 
-function getInitialDarkMode() {
-  try {
-    const saved = window.localStorage.getItem('smmtry.dark');
-    if (saved === '1') return true;
-    if (saved === '0') return false;
-  } catch {
-    // ignore
-  }
-  try {
-    const legacy = window.localStorage.getItem('smmtry_trainer_theme');
-    if (legacy === 'dark') return true;
-    if (legacy === 'light') return false;
-  } catch {
-    // ignore
-  }
-  return document.documentElement.classList.contains('dark');
-}
-
 function getInitialCollapsed() {
   try {
     return window.localStorage.getItem('smmtry_trainer_sidebar') === 'collapsed';
@@ -53,35 +35,27 @@ function getInitialCollapsed() {
 
 export function TrainerShell(props: { children: ReactNode }) {
   const pathname = usePathname() || '/';
-  const { totalCrystals } = useCrystals();
+  const { totalStars } = useStars();
+
+  const galaxyBgClass = useMemo(() => {
+    // Пока примеряем только зелёную галактику (сложение).
+    if (
+      pathname === '/addition' ||
+      pathname.startsWith('/addition/') ||
+      /^\/class-\d+\/addition(\/|$)/.test(pathname)
+    ) {
+      return 'space-bg-green';
+    }
+    return null;
+  }, [pathname]);
 
   const [isDesktop, setIsDesktop] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [darkMode, setDarkMode] = useState<boolean | null>(null);
-  const toggleDarkMode = () => {
-    const next = !(darkMode ?? getInitialDarkMode());
-    setDarkMode(next);
-    document.documentElement.classList.toggle('dark', next);
-    try {
-      window.localStorage.setItem('smmtry.dark', next ? '1' : '0');
-      window.localStorage.setItem('smmtry_trainer_theme', next ? 'dark' : 'light');
-    } catch {
-      // ignore
-    }
-  };
-
   useEffect(() => {
-    const initial = getInitialDarkMode();
-    setDarkMode(initial);
-    document.documentElement.classList.toggle('dark', initial);
-    try {
-      window.localStorage.setItem('smmtry.dark', initial ? '1' : '0');
-      window.localStorage.setItem('smmtry_trainer_theme', initial ? 'dark' : 'light');
-    } catch {
-      // ignore
-    }
+    // Космическая тема: в режиме тренажёров всегда dark.
+    document.documentElement.classList.add('dark');
 
     const mq = window.matchMedia('(min-width: 1024px)');
     const applyDesktop = () => {
@@ -114,6 +88,9 @@ export function TrainerShell(props: { children: ReactNode }) {
   const isPromoter = auth.status === 'authed' && auth.user.role === 'promoter';
   const isParent = auth.status === 'authed' && auth.user.role === 'parent';
   const isStudent = auth.status === 'authed' && auth.user.role === 'student';
+  const authReady = auth.status !== 'loading';
+  const useBottomNav = authReady && isStudent;
+  const showSidebar = authReady && !useBottomNav;
   const cabinetHref = isAdmin ? '/admin/users' : isPromoter ? '/promoter' : '/settings';
   const settingsHref = '/settings';
   const doLogout = async () => {
@@ -291,6 +268,7 @@ export function TrainerShell(props: { children: ReactNode }) {
   const activeHref = useMemo(() => {
     const hrefs: string[] = [];
     if (!isAdmin && !isPromoter && !isParent) {
+      hrefs.push('/home');
       for (const g of trainerNav) for (const i of g.items) hrefs.push(i.href);
       for (const p of progressNav) hrefs.push(p.href);
     }
@@ -328,27 +306,47 @@ export function TrainerShell(props: { children: ReactNode }) {
     }
   };
 
+  const galaxyHref = useMemo(() => {
+    // "Галактика" = список планет/блоков текущей операции и класса, если мы уже внутри.
+    const m = pathname.match(/^\/(class-(2|3|4))\/(addition|subtraction|multiplication|division)(\/|$)/);
+    if (m) return `/${m[1]}/${m[3]}`;
+    return '/home';
+  }, [pathname]);
+
+  const bottomActiveKey = useMemo(() => {
+    if (pathname === '/home' || pathname.startsWith('/home/')) return 'home';
+    if (pathname.startsWith('/progress/achievements')) return 'achievements';
+    if (pathname.startsWith('/progress/stats')) return 'stats';
+    if (pathname.startsWith('/settings')) return 'settings';
+    if (/^\/class-\d+\/(addition|subtraction|multiplication|division)(\/|$)/.test(pathname)) return 'galaxy';
+    return null;
+  }, [pathname]);
+
   return (
     <div
-      className="min-h-screen flex w-full"
+      className={cn('min-h-screen flex w-full space-sky overflow-x-hidden', galaxyBgClass)}
       style={
         {
           // Used by CenteredOverlay to center "Saving..." relative to the working area (excluding sidebar on md+).
-          '--smmtry-sidebar-w': isDesktop ? (collapsed ? '4rem' : '16rem') : '0rem',
+          '--smmtry-sidebar-w': showSidebar && isDesktop ? (collapsed ? '4rem' : '16rem') : '0rem',
+          '--smmtry-bottom-nav-h': useBottomNav ? '184px' : '0px',
         } as any
       }
     >
       {/* Mobile overlay */}
-      {mobileOpen ? <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} /> : null}
+      {showSidebar && mobileOpen ? (
+        <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />
+      ) : null}
 
-      <aside
-        className={cn(
-          'z-50 flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200',
-          'fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen overflow-y-auto',
-          isDesktop && collapsed ? 'w-16' : 'w-64',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
-      >
+      {showSidebar ? (
+        <aside
+          className={cn(
+            'z-50 flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200',
+            'fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen overflow-y-auto',
+            isDesktop && collapsed ? 'w-16' : 'w-64',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          )}
+        >
         {/* Brand */}
         <div className={cn('flex items-center gap-3 px-4', collapsed ? 'h-14 justify-center' : 'h-14')}>
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
@@ -364,76 +362,100 @@ export function TrainerShell(props: { children: ReactNode }) {
 
         {/* Nav */}
         <nav className={cn('flex-1 px-3 pb-3', collapsed ? 'pt-1' : 'pt-2')}>
-          {!isAdmin && !isPromoter && !isParent ? <div className="mb-4">
+          {!isAdmin && !isPromoter && !isParent ? (
+            <div className="mb-4">
+              {/* Home */}
+              <div className="mb-3">
+                <Link
+                  href="/home"
+                  onClick={() => setMobileOpen(false)}
+                  title={collapsed ? 'Домой' : undefined}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                    activeHref === '/home' && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                    collapsed && 'justify-center px-2',
+                  )}
+                >
+                  {pathname === '/home' ? <Home className="w-5 h-5 flex-shrink-0" /> : <Rocket className="w-5 h-5 flex-shrink-0" />}
+                  {!collapsed ? <span className="truncate">Домой</span> : null}
+                  {!collapsed && activeHref === '/home' ? <ChevronRight className="w-4 h-4 ml-auto text-sidebar-primary" /> : null}
+                </Link>
+              </div>
 
-            <div className="space-y-1">
-              {trainerNav.map((g) => {
-                const isOpen = openGrade === (g.grade as any);
-                const anyActive = g.items.some((i) => i.href === activeHref);
+              <div className="space-y-1">
+                {trainerNav.map((g) => {
+                  const isOpen = openGrade === (g.grade as any);
+                  const anyActive = g.items.some((i) => i.href === activeHref);
 
-                if (collapsed) {
+                  if (collapsed) {
+                    return (
+                      <Link
+                        key={g.grade}
+                        href={g.hrefDefault}
+                        title={g.label}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          'flex items-center justify-center px-2 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                          anyActive && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                        )}
+                      >
+                        <span className="w-10 h-10 rounded-xl bg-sidebar-accent/50 flex items-center justify-center text-sm font-extrabold tabular-nums">
+                          {g.grade}
+                        </span>
+                      </Link>
+                    );
+                  }
+
                   return (
-                    <Link
-                      key={g.grade}
-                      href={g.hrefDefault}
-                      title={g.label}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center px-2 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
-                        anyActive && 'bg-sidebar-accent text-sidebar-primary font-semibold',
-                      )}
-                    >
-                      <span className="w-10 h-10 rounded-xl bg-sidebar-accent/50 flex items-center justify-center text-sm font-extrabold tabular-nums">
-                        {g.grade}
-                      </span>
-                    </Link>
+                    <div key={g.grade} className="rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setOpenGrade((p) => (p === (g.grade as any) ? null : (g.grade as any)))}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent text-left',
+                          anyActive && 'bg-sidebar-accent/70',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'w-8 h-8 rounded-lg bg-sidebar-accent flex items-center justify-center font-extrabold tabular-nums',
+                            anyActive && 'text-sidebar-primary',
+                          )}
+                        >
+                          {g.grade}
+                        </span>
+                        <span className={cn('truncate', anyActive && 'font-semibold')}>{g.label}</span>
+                        <ChevronRight className={cn('w-4 h-4 ml-auto text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+                      </button>
+
+                      {isOpen ? (
+                        <div className="mt-1 ml-11 space-y-1">
+                          {g.items.map((item) => {
+                            const Icon = item.icon;
+                            const active = item.href === activeHref;
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                onClick={() => setMobileOpen(false)}
+                                className={cn(
+                                  'flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
+                                  active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
+                                )}
+                              >
+                                <Icon className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{item.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
                   );
-                }
-
-                return (
-                  <div key={g.grade} className="rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setOpenGrade((p) => (p === (g.grade as any) ? null : (g.grade as any)))}
-                      className={cn(
-                        'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent text-left',
-                        anyActive && 'bg-sidebar-accent/70',
-                      )}
-                    >
-                      <span className={cn('w-8 h-8 rounded-lg bg-sidebar-accent flex items-center justify-center font-extrabold tabular-nums', anyActive && 'text-sidebar-primary')}>
-                        {g.grade}
-                      </span>
-                      <span className={cn('truncate', anyActive && 'font-semibold')}>{g.label}</span>
-                      <ChevronRight className={cn('w-4 h-4 ml-auto text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
-                    </button>
-
-                    {isOpen ? (
-                      <div className="mt-1 ml-11 space-y-1">
-                        {g.items.map((item) => {
-                          const Icon = item.icon;
-                          const active = item.href === activeHref;
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              onClick={() => setMobileOpen(false)}
-                              className={cn(
-                                'flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent',
-                                active && 'bg-sidebar-accent text-sidebar-primary font-semibold',
-                              )}
-                            >
-                              <Icon className="w-4 h-4 flex-shrink-0" />
-                              <span className="truncate">{item.label}</span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
+                })}
+              </div>
             </div>
-          </div> : null}
+          ) : null}
 
           {!isAdmin && !isPromoter && !isParent ? <div className="mb-4">
             <div className="space-y-1">
@@ -570,19 +592,6 @@ export function TrainerShell(props: { children: ReactNode }) {
                 <ChevronRight className="w-5 h-5 text-muted-foreground rotate-180" />
               </button>
 
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center"
-                title={(darkMode ?? false) ? 'Светлая тема' : 'Тёмная тема'}
-              >
-                {(darkMode ?? false) ? (
-                  <Moon className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <Sun className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
-
               <a
                 className="w-10 h-10 rounded-full bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity"
                 href={auth.status === 'authed' ? cabinetHref : '/login'}
@@ -614,10 +623,10 @@ export function TrainerShell(props: { children: ReactNode }) {
               ) : null}
 
               {!isPromoter ? (
-                <div className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center" title={`Кристаллы: ${totalCrystals}`}>
+                <div className="w-10 h-10 rounded-xl hover:bg-sidebar-accent transition-colors flex items-center justify-center" title={`Звёзды: ${totalStars}`}>
                   <div className="flex items-center gap-1 text-xs font-semibold text-sidebar-foreground">
-                    <Gem className="w-4 h-4 text-brand" />
-                    <span className="tabular-nums">{totalCrystals}</span>
+                    <Star className="w-4 h-4 fill-warning text-warning" />
+                    <span className="tabular-nums">{totalStars}</span>
                   </div>
                 </div>
               ) : null}
@@ -640,9 +649,9 @@ export function TrainerShell(props: { children: ReactNode }) {
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-muted-foreground truncate">{roleRu(auth.user.role)}</p>
                       {!isPromoter ? (
-                        <div className="ml-auto inline-flex items-center gap-1 rounded-full bg-sidebar-accent px-2 py-0.5 text-xs font-semibold text-sidebar-foreground" title="Кристаллы">
-                          <Gem className="w-3.5 h-3.5 text-brand" />
-                          <span className="tabular-nums">{totalCrystals}</span>
+                        <div className="ml-auto inline-flex items-center gap-1 rounded-full bg-sidebar-accent px-2 py-0.5 text-xs font-semibold text-sidebar-foreground" title="Звёзды">
+                          <Star className="w-3.5 h-3.5 fill-warning text-warning" />
+                          <span className="tabular-nums">{totalStars}</span>
                         </div>
                       ) : null}
                       <button
@@ -677,25 +686,6 @@ export function TrainerShell(props: { children: ReactNode }) {
                 ) : null}
               </div>
 
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors"
-              >
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {(darkMode ?? false) ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                  {(darkMode ?? false) ? 'Тёмная тема' : 'Светлая тема'}
-                </span>
-                <span className={cn('inline-flex w-9 h-5 rounded-full p-0.5 transition-colors', (darkMode ?? false) ? 'bg-primary/30' : 'bg-muted')}>
-                  <span
-                    className={cn(
-                      'w-4 h-4 rounded-full bg-card shadow-sm transition-transform',
-                      (darkMode ?? false) ? 'translate-x-4' : 'translate-x-0',
-                    )}
-                  />
-                </span>
-              </button>
-
               {auth.status === 'authed' ? (
                 <Link
                   href={settingsHref}
@@ -721,10 +711,11 @@ export function TrainerShell(props: { children: ReactNode }) {
           )}
         </div>
       </aside>
+      ) : null}
 
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className={cn('flex-1 flex flex-col min-w-0 relative', useBottomNav && 'pb-[var(--smmtry-bottom-nav-h)]')}>
         {/* Mobile header */}
-        {!hideMobileHeader ? (
+        {showSidebar && !hideMobileHeader ? (
           <header className="h-14 flex items-center border-b border-border px-4 lg:hidden bg-card sticky top-0 z-40">
             <button
               type="button"
@@ -739,7 +730,7 @@ export function TrainerShell(props: { children: ReactNode }) {
         ) : null}
 
         {/* Desktop trigger (expand when collapsed) */}
-        {collapsed && isDesktop ? (
+        {showSidebar && collapsed && isDesktop ? (
           <div className="hidden lg:flex absolute top-3 left-4 z-40 items-center gap-2">
             <button
               type="button"
@@ -754,6 +745,103 @@ export function TrainerShell(props: { children: ReactNode }) {
 
         <main className="flex-1">{props.children}</main>
       </div>
+
+      {useBottomNav ? (
+        <nav className="fixed bottom-0 left-0 right-0 z-50">
+          <div className="relative w-full">
+            {/* Underlay base (full width, shorter height) */}
+            <div className="w-full bg-neutral-900/55 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_60px_rgba(0,0,0,0.55)] rounded-t-[36px] pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+              <div className="h-[72px] md:h-[80px]" />
+            </div>
+
+            {/* Screen (panel image) protruding above the base */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 top-0 -translate-y-[64px]"
+              style={{ width: 'min(calc(92vw * 1.05), calc(760px * 1.05))' }}
+            >
+              <div className="relative h-[168px] md:h-[182px]">
+                {/* Panel image */}
+                <div className="absolute inset-0 rounded-[28px] overflow-hidden pointer-events-none">
+                  <img src="/ui/panel-bar.png" alt="" aria-hidden="true" className="w-full h-full object-contain" draggable={false} />
+                </div>
+
+                {/* Icons layer */}
+                <div className="relative z-10 h-full grid grid-cols-5 place-items-center px-8 pt-6 pb-5">
+                  {[
+                    {
+                      key: 'stats' as const,
+                      label: 'Статистика',
+                      href: '/progress/stats',
+                      iconSrc: '/icons/bottom-nav/book-stat-inactive.png',
+                      iconActiveSrc: '/icons/bottom-nav/book-stat.png',
+                      big: true,
+                    },
+                    {
+                      key: 'home' as const,
+                      label: 'Домой',
+                      href: '/home',
+                      iconSrc: '/icons/bottom-nav/rocket-inacitve.png',
+                      iconActiveSrc: '/icons/bottom-nav/rocket.png',
+                      big: true,
+                    },
+                    {
+                      key: 'galaxy' as const,
+                      label: 'Галактика',
+                      href: galaxyHref,
+                      iconSrc: '/icons/bottom-nav/map-inactive.png',
+                      iconActiveSrc: '/icons/bottom-nav/map.png',
+                      big: true,
+                    },
+                    {
+                      key: 'achievements' as const,
+                      label: 'Достижения',
+                      href: '/progress/achievements',
+                      iconSrc: '/icons/bottom-nav/trophy-inactive.png',
+                      iconActiveSrc: '/icons/bottom-nav/trophy.png',
+                    },
+                    {
+                      key: 'settings' as const,
+                      label: 'Настройки',
+                      href: '/settings',
+                      // У этого набора файлов цвета "active/inactive" перепутаны относительно названия.
+                      iconSrc: '/icons/bottom-nav/settings.png',
+                      iconActiveSrc: '/icons/bottom-nav/settings-inactive.png',
+                      big: true,
+                    },
+                  ].map((item) => {
+                    const active = bottomActiveKey === item.key;
+                    return (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        className={cn(
+                          'flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 transition-opacity',
+                          active ? 'opacity-100' : 'opacity-70 hover:opacity-100',
+                        )}
+                        aria-current={active ? 'page' : undefined}
+                        aria-label={item.label}
+                      >
+                        <img
+                          src={active ? item.iconActiveSrc : item.iconSrc}
+                          alt=""
+                          aria-hidden="true"
+                          className={item.big ? 'w-[62px] h-[62px]' : 'w-12 h-12'}
+                          draggable={false}
+                        />
+                        {active ? (
+                          <span className="text-[12px] leading-none font-semibold text-foreground">{item.label}</span>
+                        ) : (
+                          <span aria-hidden="true" className="h-[12px]" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 }

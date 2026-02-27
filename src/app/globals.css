@@ -460,5 +460,33 @@
       }
     }
   }
+
+  /* Auth cards: fade in + slide up; fade out + slide up */
+  .animate-auth-enter {
+    animation: auth-enter 0.32s ease-out both;
+  }
+  .animate-auth-exit {
+    animation: auth-exit 0.22s ease-in both;
+  }
+  @keyframes auth-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes auth-exit {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+  }
 }
 

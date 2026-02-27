@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 
 import { prisma } from '../../../../lib/db';
-import { hashToken } from '../../../../lib/auth';
+import { AUTH_COOKIE_NAME, expiresAtFromNow, hashToken, newToken } from '../../../../lib/auth';
 import { renderBasicEmail } from '../../../../lib/mailTemplates';
 import { sendMail } from '../../../../lib/mail';
 
@@ -34,9 +34,21 @@ function emailConfirmTtlHours(): number {
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const roleRaw = typeof body?.role === 'string' ? body.role.trim() : '';
+  const role = roleRaw === 'parent' || roleRaw === 'student' ? roleRaw : 'student';
+  const displayName = typeof body?.displayName === 'string' ? body.displayName.trim() : '';
+  const emailInput = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body?.password === 'string' ? body.password : '';
-  if (!email || !password || password.length < 6) {
+
+  const needsEmail = role === 'parent';
+  const email =
+    needsEmail
+      ? emailInput
+      : emailInput
+        ? emailInput
+        : `student+${randomBytes(9).toString('base64url')}@math-trainer.local`;
+
+  if ((needsEmail && !emailInput) || !password || password.length < 6) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
@@ -48,8 +60,16 @@ export async function POST(req: Request) {
   const refCode = normalizeRefCode(cookies().get(REF_COOKIE)?.value);
   const user = await prisma.user.create({
     // Trial should start from the first successful login, not from registration.
-    data: { email, passwordHash, role: 'student', emailVerifiedAt: null },
-    select: { id: true, email: true },
+    data: {
+      email,
+      passwordHash,
+      role,
+      displayName: displayName || null,
+      emailVerifiedAt: needsEmail ? null : now,
+      lastLoginAt: needsEmail ? null : now,
+      lastSeenAt: needsEmail ? null : now,
+    },
+    select: { id: true, email: true, role: true },
   });
 
   if (refCode) {
@@ -67,38 +87,42 @@ export async function POST(req: Request) {
   const token = randomBytes(32).toString('base64url');
   const tokenHash = hashToken(token);
   const expiresAt = new Date(now.getTime() + emailConfirmTtlHours() * 60 * 60_000);
-  await prisma.emailConfirmationToken.create({
-    data: { userId: user.id, tokenHash, expiresAt },
-  });
+  if (needsEmail) {
+    await prisma.emailConfirmationToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+  }
 
   try {
-    // 1) Welcome email (with credentials)
-    // NOTE: Sending passwords by email is not recommended, but required by the product spec.
-    const welcome = renderBasicEmail({
-      title: 'Добро пожаловать в МатТренер',
-      previewText: 'Ваши данные для входа',
-      paragraphs: [
-        `Логин: ${email}`,
-        `Пароль: ${password}`,
-        '',
-        'Если это были не вы — проигнорируйте письмо.',
-      ],
-    });
-    await sendMail({ to: email, ...welcome });
+    if (needsEmail) {
+      // 1) Welcome email (with credentials)
+      // NOTE: Sending passwords by email is not recommended, but required by the product spec.
+      const welcome = renderBasicEmail({
+        title: 'Добро пожаловать в МатТренер',
+        previewText: 'Ваши данные для входа',
+        paragraphs: [
+          `Логин: ${email}`,
+          `Пароль: ${password}`,
+          '',
+          'Если это были не вы — проигнорируйте письмо.',
+        ],
+      });
+      await sendMail({ to: email, ...welcome });
 
-    // 2) Email confirmation link
-    const link = `${webBaseUrl(req)}/signup/confirm?token=${encodeURIComponent(token)}`;
-    const confirm = renderBasicEmail({
-      title: 'Подтверждение почты — МатТренер',
-      previewText: 'Подтверди регистрацию по ссылке',
-      paragraphs: [
-        'Чтобы подтвердить регистрацию, откройте ссылку:',
-        link,
-        '',
-        'Если вы не регистрировались — просто проигнорируйте письмо.',
-      ],
-    });
-    await sendMail({ to: email, ...confirm });
+      // 2) Email confirmation link
+      const link = `${webBaseUrl(req)}/signup/confirm?token=${encodeURIComponent(token)}`;
+      const confirm = renderBasicEmail({
+        title: 'Подтверждение почты — МатТренер',
+        previewText: 'Подтверди регистрацию по ссылке',
+        paragraphs: [
+          'Чтобы подтвердить регистрацию, откройте ссылку:',
+          link,
+          '',
+          'Если вы не регистрировались — просто проигнорируйте письмо.',
+        ],
+      });
+      await sendMail({ to: email, ...confirm });
+    }
   } catch (err) {
     // Cleanup: do not create an account if we cannot deliver confirmation email.
     await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
@@ -107,7 +131,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'email_send_failed' }, { status: 502 });
   }
 
-  // Do not auto-login until email is verified.
-  return NextResponse.json({ ok: true, needsEmailConfirm: true });
+  if (needsEmail) {
+    // Do not auto-login until email is verified.
+    return NextResponse.json({ ok: true, needsEmailConfirm: true });
+  }
+
+  // Student flow: auto-login (no email required) to avoid dead accounts.
+  const sessionToken = newToken();
+  await prisma.session.create({
+    data: { userId: user.id, tokenHash: hashToken(sessionToken), expiresAt: expiresAtFromNow() },
+  });
+  const res = NextResponse.json({ ok: true, autoLoggedIn: true, user: { id: user.id, role: user.role } });
+  res.cookies.set(AUTH_COOKIE_NAME, sessionToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  });
+  return res;
 }
 

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const path = cleanPath((body as any)?.path);
+  const path = cleanPath(body && typeof body === 'object' ? (body as Record<string, unknown>).path : null);
   const now = new Date();
 
   await prisma.user.update({

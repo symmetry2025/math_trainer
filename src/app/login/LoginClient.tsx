@@ -325,6 +325,11 @@ export default function LoginClient() {
   const title =
     view === 'login' ? 'Войти' : view === 'forgot' ? 'Восстановление пароля' : view === 'registerRole' ? 'Регистрация' : 'Регистрация';
 
+  const subtitle =
+    view === 'registerParentPassword'
+      ? 'Почта подтверждена. Теперь придумай пароль.'
+      : null;
+
   const authBtnBase =
     'w-full h-12 rounded-2xl px-6 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
   const authBtnPrimary = `${authBtnBase} btn-primary`;
@@ -377,6 +382,7 @@ export default function LoginClient() {
         <div className={cardClass}>
           <div>
             <h1 className="text-2xl font-extrabold">{title}</h1>
+            {subtitle ? <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div> : null}
           </div>
 
           {view === 'registerRole' ? (
@@ -476,16 +482,6 @@ export default function LoginClient() {
                 />
               </label>
 
-              <div className="text-xs">
-                <div className="font-semibold text-muted-foreground">Требования к паролю:</div>
-                <ul className="mt-1 space-y-1">
-                  <li className={passwordReq.len ? 'text-success' : 'text-muted-foreground'}>Минимум 6 символов</li>
-                  <li className={passwordReq.digit ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 цифру</li>
-                  <li className={passwordReq.upper ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 большую букву</li>
-                  <li className={passwordReq.lower ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 маленькую букву</li>
-                </ul>
-              </div>
-
               <label className="block text-sm font-medium">
                 Подтвердить пароль
                 <input
@@ -496,6 +492,16 @@ export default function LoginClient() {
                   autoComplete="new-password"
                 />
               </label>
+
+              <div className="text-xs">
+                <div className="text-muted-foreground">Требования к паролю:</div>
+                <ul className="mt-1 list-disc pl-5 space-y-1">
+                  <li className={passwordReq.len ? 'text-success' : 'text-muted-foreground'}>Минимум 6 символов</li>
+                  <li className={passwordReq.digit ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 цифру</li>
+                  <li className={passwordReq.upper ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 большую букву</li>
+                  <li className={passwordReq.lower ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 маленькую букву</li>
+                </ul>
+              </div>
 
               {passwordsMismatch ? <div className="text-xs text-destructive">Пароли не совпадают</div> : null}
             </div>
@@ -523,16 +529,6 @@ export default function LoginClient() {
                 />
               </label>
 
-              <div className="text-xs">
-                <div className="font-semibold text-muted-foreground">Требования к паролю:</div>
-                <ul className="mt-1 space-y-1">
-                  <li className={passwordReq.len ? 'text-success' : 'text-muted-foreground'}>Минимум 6 символов</li>
-                  <li className={passwordReq.digit ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 цифру</li>
-                  <li className={passwordReq.upper ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 большую букву</li>
-                  <li className={passwordReq.lower ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 маленькую букву</li>
-                </ul>
-              </div>
-
               <label className="block text-sm font-medium">
                 Подтвердить пароль
                 <input
@@ -543,6 +539,16 @@ export default function LoginClient() {
                   autoComplete="new-password"
                 />
               </label>
+
+              <div className="text-xs">
+                <div className="text-muted-foreground">Требования к паролю:</div>
+                <ul className="mt-1 list-disc pl-5 space-y-1">
+                  <li className={passwordReq.len ? 'text-success' : 'text-muted-foreground'}>Минимум 6 символов</li>
+                  <li className={passwordReq.digit ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 цифру</li>
+                  <li className={passwordReq.upper ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 большую букву</li>
+                  <li className={passwordReq.lower ? 'text-success' : 'text-muted-foreground'}>Имеет хотя бы 1 маленькую букву</li>
+                </ul>
+              </div>
 
               {passwordsMismatch ? <div className="text-xs text-destructive">Пароли не совпадают</div> : null}
             </div>

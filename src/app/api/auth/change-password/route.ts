@@ -6,6 +6,14 @@ import { getCurrentUserOrNull } from '../../../../lib/auth';
 import { renderBasicEmail } from '../../../../lib/mailTemplates';
 import { sendMail } from '../../../../lib/mail';
 
+function passwordMeetsRequirements(pw: string): boolean {
+  if (!pw || pw.length < 6) return false;
+  if (!/\d/.test(pw)) return false;
+  if (!/[A-Z]/.test(pw)) return false;
+  if (!/[a-z]/.test(pw)) return false;
+  return true;
+}
+
 export async function POST(req: Request) {
   const me = await getCurrentUserOrNull();
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -13,7 +21,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const oldPassword = typeof body?.oldPassword === 'string' ? body.oldPassword : '';
   const newPassword = typeof body?.newPassword === 'string' ? body.newPassword : '';
-  if (!oldPassword || !newPassword || newPassword.length < 6) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  if (!oldPassword || !passwordMeetsRequirements(newPassword)) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
 
   const user = await prisma.user.findUnique({ where: { id: me.id }, select: { id: true, email: true, passwordHash: true } });
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

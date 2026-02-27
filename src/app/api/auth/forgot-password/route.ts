@@ -8,8 +8,26 @@ import { renderBasicEmail } from '../../../../lib/mailTemplates';
 import { sendMail } from '../../../../lib/mail';
 
 function generatePassword(): string {
-  // 12–14 chars, URL-safe. Good enough for our UX (spec requires sending password by email).
-  return randomBytes(10).toString('base64url').slice(0, 14);
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digit = '0123456789';
+  const all = lower + upper + digit;
+
+  const bytes = randomBytes(64);
+  let p = 0;
+  const pick = (chars: string) => chars[bytes[p++ % bytes.length] % chars.length]!;
+
+  const out: string[] = [pick(lower), pick(upper), pick(digit)];
+  while (out.length < 12) out.push(pick(all));
+
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = bytes[p++ % bytes.length] % (i + 1);
+    const tmp = out[i];
+    out[i] = out[j]!;
+    out[j] = tmp!;
+  }
+
+  return out.join('');
 }
 
 function webBaseUrl(req: Request): string {

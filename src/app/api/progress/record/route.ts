@@ -25,7 +25,7 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function isColumnProgress(p: AnyProgress | null): p is ColumnProgress {
-  return !!p && typeof (p as any).accuracy === 'boolean' && typeof (p as any).speed === 'boolean' && typeof (p as any).raceStars === 'number';
+  return !!p && typeof (p as any).accuracy === 'boolean' && typeof (p as any).raceStars === 'number';
 }
 
 function isMentalProgress(p: AnyProgress | null): p is MentalProgress {
@@ -33,7 +33,6 @@ function isMentalProgress(p: AnyProgress | null): p is MentalProgress {
     !!p &&
     typeof (p as any)['accuracy-choice'] === 'boolean' &&
     typeof (p as any)['accuracy-input'] === 'boolean' &&
-    typeof (p as any).speed === 'boolean' &&
     typeof (p as any).raceStars === 'number'
   );
 }
@@ -43,7 +42,6 @@ function isDrillProgress(p: AnyProgress | null): p is DrillProgress {
     !!p &&
     typeof (p as any).lvl1 === 'boolean' &&
     typeof (p as any).lvl2 === 'boolean' &&
-    typeof (p as any).lvl3 === 'boolean' &&
     typeof (p as any).raceStars === 'number'
   );
 }
@@ -127,8 +125,6 @@ export async function POST(req: Request) {
         let next: ColumnProgress = { ...prev };
         if (level === 'accuracy') {
           if (mistakes === 0) next = { ...next, accuracy: true };
-        } else if (level === 'speed') {
-          if (success) next = { ...next, speed: true };
         } else if (level === 'race') {
           if (stars > next.raceStars) next = { ...next, raceStars: stars };
         }
@@ -152,8 +148,6 @@ export async function POST(req: Request) {
           if (total > 0 && correct >= total * 0.8) next['accuracy-choice'] = true;
         } else if (level === 'accuracy-input') {
           if (total > 0 && correct >= total * 0.8) next['accuracy-input'] = true;
-        } else if (level === 'speed') {
-          if (won) next.speed = true;
         } else if (level === 'race') {
           if (won) next.raceStars = Math.max(next.raceStars, starLevel);
         }
@@ -179,8 +173,6 @@ export async function POST(req: Request) {
           if (total > 0 && correct >= total * 0.8) next.lvl1 = true;
         } else if (level === 'lvl2') {
           if (total > 0 && correct >= total * 0.8) next.lvl2 = true;
-        } else if (level === 'lvl3') {
-          if (mistakes <= 4) next.lvl3 = true;
         } else if (level === 'race') {
           if (won) next.raceStars = Math.max(next.raceStars, clamp(starLevel, 0, 3));
         }

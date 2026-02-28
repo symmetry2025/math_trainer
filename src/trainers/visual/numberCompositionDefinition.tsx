@@ -3,7 +3,7 @@
 import { TrainerRecordProgressResponseDtoSchema, type NewlyUnlockedAchievementDto } from '@smmtry/shared';
 
 import { getNumberCompositionConfig } from '../../data/numberCompositionConfig';
-import { emitProgressUpdated } from '../../lib/crystals';
+import { emitProgressUpdated } from '../../lib/stars';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { arithmeticDbTrainerId, arithmeticStorageKey } from '../../lib/trainerIds';
 import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinition } from '../../trainerFlow';
@@ -13,9 +13,8 @@ import { defaultVisualMentalProgress, normalizeVisualMentalProgress, type Visual
 import { MENTAL_MATH_OPPONENT_NAMES } from '../../data/mentalMathConfig';
 
 export type NumberCompositionSessionConfig = SessionConfigBase & {
-  level: 'accuracy-choice' | 'accuracy-input' | 'speed' | 'race';
-  starLevel?: 1 | 2 | 3;
-  timeLimitSec?: number;
+  level: 'accuracy-choice' | 'accuracy-input' | 'race';
+  starLevel?: 2 | 3;
   npcSecondsPerProblem?: number;
   minSum: number;
   maxSum: number;
@@ -67,20 +66,6 @@ function makePresets(
       successPolicy: { type: 'minAccuracy', min: 0.8 },
     },
     {
-      id: 'speed',
-      title: 'Скорость',
-      description: 'Успей за 60 секунд • 20 примеров',
-      defaultConfig: { presetId: 'speed', level: 'speed', timeLimitSec: 60, ...range, totalProblems: 20 },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: 'Реши 20 примеров быстрее Новичка',
-      defaultConfig: { presetId: 'race:1', level: 'race', starLevel: 1, npcSecondsPerProblem: 6, ...range, totalProblems: 20 },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
-    },
-    {
       id: 'race:2',
       title: 'Знаток',
       description: 'Реши 20 примеров быстрее Знатока',
@@ -126,20 +111,6 @@ export function makeNumberCompositionDefinition(args: { trainerId: string; backH
           successPolicy: { type: 'minAccuracy', min: 0.8 },
         },
         {
-          id: 'speed',
-          title: 'Скорость',
-          description: `Успей за 180 секунд • ${houseTotal} ячеек`,
-          defaultConfig: { presetId: 'speed', level: 'speed', timeLimitSec: 180, ...range, totalProblems: houseTotal || 10 },
-          successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
-        },
-        {
-          id: 'race:1',
-          title: 'Новичок',
-          description: `Заполни домики быстрее Новичка • ${houseTotal} ячеек`,
-          defaultConfig: { presetId: 'race:1', level: 'race', starLevel: 1, npcSecondsPerProblem: 6, ...range, totalProblems: houseTotal || 10 },
-          successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
-        },
-        {
           id: 'race:2',
           title: 'Знаток',
           description: `Заполни домики быстрее Знатока • ${houseTotal} ячеек`,
@@ -170,10 +141,8 @@ export function makeNumberCompositionDefinition(args: { trainerId: string; backH
       type: 'custom',
       isLocked: ({ presetId, progress }) => {
         const p = progress as any;
-        if (presetId === 'speed') return !p?.['accuracy-input'];
-        if (presetId === 'race:1') return !p?.speed;
-        if (presetId === 'race:2') return !p?.speed || Number(p?.raceStars || 0) < 1;
-        if (presetId === 'race:3') return !p?.speed || Number(p?.raceStars || 0) < 2;
+        if (presetId === 'race:2') return !p?.['accuracy-input'];
+        if (presetId === 'race:3') return Number(p?.raceStars || 0) < 2;
         return false; // training + accuracy are open by default
       },
     },
@@ -201,13 +170,12 @@ export function makeNumberCompositionDefinition(args: { trainerId: string; backH
             maxSum={config.maxSum}
             totalProblems={config.totalProblems}
             level={config.level}
-            timeLimitSec={config.timeLimitSec}
             starLevel={config.starLevel}
             npcSecondsPerProblem={config.npcSecondsPerProblem}
             setMetrics={setMetrics}
             onFinish={({ correct, solved, total, mistakes, timeSec, won, starsEarned }) => {
               const level = config.level;
-              const success = level === 'speed' || level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
+              const success = level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
               const result: SessionResult = { success, metrics: { total, solved, correct, mistakes, timeSec, won: !!won, starsEarned } };
               onFinish(result);
             }}
@@ -219,13 +187,12 @@ export function makeNumberCompositionDefinition(args: { trainerId: string; backH
             maxSum={config.maxSum}
             totalProblems={config.totalProblems}
             level={config.level}
-            timeLimitSec={config.timeLimitSec}
             starLevel={config.starLevel}
             npcSecondsPerProblem={config.npcSecondsPerProblem}
             setMetrics={setMetrics}
             onFinish={({ correct, solved, total, mistakes, timeSec, won, starsEarned }) => {
               const level = config.level;
-              const success = level === 'speed' || level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
+              const success = level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
               const result: SessionResult = { success, metrics: { total, solved, correct, mistakes, timeSec, won: !!won, starsEarned } };
               onFinish(result);
             }}
@@ -245,9 +212,8 @@ export function makeNumberCompositionDefinition(args: { trainerId: string; backH
 
       if (config.level === 'accuracy-choice' && result.success) next['accuracy-choice'] = true;
       if (config.level === 'accuracy-input' && result.success) next['accuracy-input'] = true;
-      if (config.level === 'speed' && !!result.metrics.won) next.speed = true;
       if (config.level === 'race') {
-        const star = Math.max(1, Math.min(3, Math.floor(Number(config.starLevel || 1)))) as 1 | 2 | 3;
+        const star = Math.max(2, Math.min(3, Math.floor(Number(config.starLevel || 2)))) as 2 | 3;
         if (!!result.metrics.won) next.raceStars = Math.max(next.raceStars, star);
       }
 
@@ -258,7 +224,7 @@ export function makeNumberCompositionDefinition(args: { trainerId: string; backH
       try {
         const presetId = String(config.presetId || '');
         const isRace = presetId.startsWith('race:') || config.level === 'race';
-        const starLevel = isRace ? (Math.max(1, Math.min(3, Number(config.starLevel || presetId.split(':')[1] || 1))) as 1 | 2 | 3) : undefined;
+        const starLevel = isRace ? (Math.max(2, Math.min(3, Number(config.starLevel || presetId.split(':')[1] || 2))) as 2 | 3) : undefined;
         const level = isRace ? 'race' : config.level;
         const won = !!result.metrics.won;
         const res = await fetch('/api/progress/record', {

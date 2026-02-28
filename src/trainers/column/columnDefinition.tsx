@@ -5,23 +5,22 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { TrainerConfig } from '../../data/trainerConfig';
 import { getTrainerConfig, OPPONENT_NAMES } from '../../data/trainerConfig';
-import { emitProgressUpdated } from '../../lib/crystals';
+import { emitProgressUpdated } from '../../lib/stars';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { columnStorageKey } from '../../lib/trainerIds';
 import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinition } from '../../trainerFlow';
-import { RaceMode, TimedMode } from '../../trainerFlow/gameModes';
+import { RaceMode } from '../../trainerFlow/gameModes';
 import type { SessionMetrics } from '../../trainerFlow';
 import { TrainerRecordProgressResponseDtoSchema, type NewlyUnlockedAchievementDto } from '@smmtry/shared';
 
-export type ColumnProgress = { accuracy: boolean; speed: boolean; raceStars: number }; // 0..3
+export type ColumnProgress = { accuracy: boolean; raceStars: number }; // 0..3
 
-type ColumnPresetId = 'training' | 'accuracy' | 'speed' | 'race:1' | 'race:2' | 'race:3';
+type ColumnPresetId = 'training' | 'accuracy' | 'race:2' | 'race:3';
 
 export type ColumnSessionConfig = SessionConfigBase & {
-  mode: 'training' | 'accuracy' | 'speed' | 'race';
-  starLevel?: 1 | 2 | 3; // for race
+  mode: 'training' | 'accuracy' | 'race';
+  starLevel?: 2 | 3; // for race
   totalProblems: number;
-  timeLimit?: number; // for speed
   npcSecondsPerProblem?: number; // for race
   trainerId: string; // 'column-addition' etc
 };
@@ -42,7 +41,7 @@ type ColumnGameComponent = ComponentType<{
   onNextLevel?: () => void;
 }>;
 
-const defaultProgress = (): ColumnProgress => ({ accuracy: false, speed: false, raceStars: 0 });
+const defaultProgress = (): ColumnProgress => ({ accuracy: false, raceStars: 0 });
 
 function clampStars(v: unknown): 0 | 1 | 2 | 3 {
   const n = Math.floor(Number(v || 0));
@@ -53,7 +52,7 @@ function clampStars(v: unknown): 0 | 1 | 2 | 3 {
 }
 
 function normalizeProgress(p: any): ColumnProgress {
-  return { accuracy: !!p?.accuracy, speed: !!p?.speed, raceStars: clampStars(p?.raceStars) };
+  return { accuracy: !!p?.accuracy, raceStars: clampStars(p?.raceStars) };
 }
 
 function storageKey(trainerId: string) {
@@ -79,17 +78,16 @@ function saveLocalProgress(trainerId: string, p: ColumnProgress) {
 }
 
 function makePresets(config: TrainerConfig): Array<PresetDefinition<ColumnSessionConfig, ColumnProgress>> {
+  const trainingTotal = config.training.problems;
   const accuracyTotal = config.accuracy.problems;
-  const speedTotal = config.speed.problems;
-  const speedLimit = config.speed.timeLimit || 60;
   const raceTotal = config.race.problems;
 
   return [
     {
       id: 'training',
       title: 'Тренировка',
-      description: `Потренируйся без ограничений • ${accuracyTotal} примеров`,
-      defaultConfig: { presetId: 'training', mode: 'training', totalProblems: accuracyTotal, trainerId: config.id },
+      description: `Потренируйся без ограничений • ${trainingTotal} примеров`,
+      defaultConfig: { presetId: 'training', mode: 'training', totalProblems: trainingTotal, trainerId: config.id },
       unlock: { isLocked: () => false },
     },
     {
@@ -99,35 +97,6 @@ function makePresets(config: TrainerConfig): Array<PresetDefinition<ColumnSessio
       defaultConfig: { presetId: 'accuracy', mode: 'accuracy', totalProblems: accuracyTotal, trainerId: config.id },
       successPolicy: { type: 'noMistakes' },
       unlock: { isLocked: () => false },
-    },
-    {
-      id: 'speed',
-      title: 'Скорость',
-      description: `Успей решить за ${speedLimit} секунд • ${speedTotal} примеров`,
-      defaultConfig: { presetId: 'speed', mode: 'speed', totalProblems: speedTotal, timeLimit: speedLimit, trainerId: config.id },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
-      unlock: {
-        isLocked: ({ progress }) => !progress.accuracy,
-        lockedReason: () => 'Сначала пройди “Точность”',
-      },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: `Реши ${raceTotal} примеров быстрее Новичка`,
-      defaultConfig: {
-        presetId: 'race:1',
-        mode: 'race',
-        starLevel: 1,
-        totalProblems: raceTotal,
-        npcSecondsPerProblem: config.npcSpeeds[1],
-        trainerId: config.id,
-      },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
-      unlock: {
-        isLocked: ({ progress }) => !progress.speed,
-        lockedReason: () => 'Сначала пройди “Скорость”',
-      },
     },
     {
       id: 'race:2',
@@ -143,8 +112,8 @@ function makePresets(config: TrainerConfig): Array<PresetDefinition<ColumnSessio
       },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
       unlock: {
-        isLocked: ({ progress }) => !progress.speed || progress.raceStars < 1,
-        lockedReason: () => 'Сначала победи ⭐1',
+        isLocked: ({ progress }) => !progress.accuracy,
+        lockedReason: () => 'Сначала пройди “Точность”',
       },
     },
     {
@@ -161,7 +130,7 @@ function makePresets(config: TrainerConfig): Array<PresetDefinition<ColumnSessio
       },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
       unlock: {
-        isLocked: ({ progress }) => !progress.speed || progress.raceStars < 2,
+        isLocked: ({ progress }) => progress.raceStars < 2,
         lockedReason: () => 'Сначала победи ⭐2',
       },
     },
@@ -171,7 +140,6 @@ function makePresets(config: TrainerConfig): Array<PresetDefinition<ColumnSessio
 function gameDifficulty(mode: ColumnSessionConfig['mode']): DifficultyForGame {
   if (mode === 'training') return 'easy';
   if (mode === 'accuracy') return 'easy';
-  if (mode === 'speed') return 'medium';
   return 'hard';
 }
 
@@ -195,7 +163,7 @@ function ColumnSession(props: {
     setSolved(0);
     setMistakes(0);
     setComplete(false);
-    setTimeRemaining(config.mode === 'speed' ? (config.timeLimit ?? 60) : null);
+    setTimeRemaining(null);
     setOpponentProgressPct(0);
     finishedRef.current = false;
   }, [config.attemptId]); // attemptId changes on start/retry
@@ -217,14 +185,11 @@ function ColumnSession(props: {
         ? {
             kind: 'text' as const,
             label: 'Соперник',
-            value: `${OPPONENT_NAMES[config.starLevel ?? 1]}`,
+            value: `${OPPONENT_NAMES[config.starLevel ?? 2]}`,
           }
         : null;
     const badges: SessionMetrics['badges'] = [
       { kind: 'counter', label: 'Пример', current: Math.min(totalProblems, Math.max(0, solved + 1)), total: totalProblems },
-      ...(config.mode === 'speed' && typeof timeRemaining === 'number'
-        ? ([{ kind: 'time', label: 'Время', seconds: timeRemaining, mode: 'remaining', totalSeconds: config.timeLimit ?? 60 }] as const)
-        : []),
       { kind: 'mistakes', label: 'Ошибки', value: mistakes },
       ...(opponentLine ? ([opponentLine] as const) : []),
     ];
@@ -281,31 +246,8 @@ function ColumnSession(props: {
     return commonGame;
   }
 
-  if (config.mode === 'speed') {
-    const timeLimit = config.timeLimit ?? 60;
-    return (
-      <TimedMode
-        timeLimit={timeLimit}
-        totalProblems={totalProblems}
-        solvedProblems={solved}
-        mistakes={mistakes}
-        isGameComplete={complete}
-        hideHud={true}
-        onTick={(tr) => setTimeRemaining(tr)}
-        onTimeEnd={(timeElapsed, success) => {
-          emitFinishOnce({
-            success,
-            metrics: { total: totalProblems, solved, mistakes, timeSec: timeElapsed, won: success },
-          });
-        }}
-      >
-        {commonGame}
-      </TimedMode>
-    );
-  }
-
   // race
-  const starLevel = config.starLevel ?? 1;
+  const starLevel = config.starLevel ?? 2;
   const npcSecondsPerProblem = config.npcSecondsPerProblem ?? 12;
   return (
     <RaceMode
@@ -353,10 +295,8 @@ export function makeColumnDefinition(args: {
       type: 'custom',
       isLocked: ({ presetId, progress }) => {
         const p = progress as any;
-        if (presetId === 'speed') return !p?.accuracy;
-        if (presetId === 'race:1') return !p?.speed;
-        if (presetId === 'race:2') return !p?.speed || Number(p?.raceStars || 0) < 1;
-        if (presetId === 'race:3') return !p?.speed || Number(p?.raceStars || 0) < 2;
+        if (presetId === 'race:2') return !p?.accuracy;
+        if (presetId === 'race:3') return Number(p?.raceStars || 0) < 2;
         return false; // training + accuracy are open by default
       },
     },
@@ -407,8 +347,6 @@ export function makeColumnDefinition(args: {
       // Update local monotonic progress
       if (sessionConfig.mode === 'accuracy') {
         if (mistakes === 0) next.accuracy = true;
-      } else if (sessionConfig.mode === 'speed') {
-        if (result.success) next.speed = true;
       } else {
         const stars = clampStars(result.metrics.starsEarned || 0);
         if (stars > next.raceStars) next.raceStars = stars;
@@ -433,18 +371,6 @@ export function makeColumnDefinition(args: {
                 time: 0,
                 success: mistakes === 0,
               }
-            : level === 'speed'
-              ? {
-                  trainerId: args.trainerId,
-                  attemptId: sessionConfig.attemptId,
-                  kind: 'column',
-                  level: 'speed',
-                  total,
-                  solved,
-                  mistakes,
-                  time,
-                  success: result.success,
-                }
               : {
                   trainerId: args.trainerId,
                   attemptId: sessionConfig.attemptId,

@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Flame, Gift, Target, Zap } from 'lucide-react';
+import { Clock, Flame, Star, Target, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ChallengeTodayResponseDtoSchema, type ChallengeTodayResponseDto } from '@smmtry/shared';
 
@@ -37,7 +37,7 @@ export default function ChallengeScreen() {
   const todayChallenge = data?.today ?? null;
   const streakDays = data?.streak.streakDays ?? 0;
   const nextMilestoneDays = data?.streak.nextMilestoneDays ?? 7;
-  const milestoneRewardCrystals = data?.streak.milestoneRewardCrystals ?? nextMilestoneDays * 10;
+  const milestoneRewardStars = data?.streak.milestoneRewardStars ?? nextMilestoneDays * 10;
 
   return (
     <div className="min-h-screen py-6 px-4 md:py-10 md:px-8">
@@ -74,7 +74,7 @@ export default function ChallengeScreen() {
             </div>
             <div className="text-right">
               <div className="text-sm text-muted-foreground">Награда за серию</div>
-              <div className="text-lg font-bold text-accent">+{milestoneRewardCrystals} кристаллов</div>
+              <div className="text-lg font-bold text-accent">+{milestoneRewardStars} ⭐</div>
             </div>
           </div>
         </div>
@@ -88,8 +88,8 @@ export default function ChallengeScreen() {
               <p className="text-muted-foreground mt-1">{todayChallenge?.description ?? ''}</p>
             </div>
             <div className="flex items-center gap-2 bg-gradient-to-r from-accent to-orange-600 text-white px-4 py-2 rounded-full">
-              <Gift className="w-5 h-5" />
-              <span className="font-bold">+{todayChallenge?.rewardCrystals ?? 0}</span>
+              <Star className="w-5 h-5 fill-white text-white" />
+              <span className="font-bold">+{todayChallenge?.rewardStars ?? 0}</span>
             </div>
           </div>
 

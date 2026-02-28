@@ -3,7 +3,7 @@
 import { TrainerRecordProgressResponseDtoSchema, type NewlyUnlockedAchievementDto } from '@smmtry/shared';
 
 import { getTableFillConfig } from '../../data/tableFillConfig';
-import { emitProgressUpdated } from '../../lib/crystals';
+import { emitProgressUpdated } from '../../lib/stars';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { arithmeticDbTrainerId, arithmeticStorageKey } from '../../lib/trainerIds';
 import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinition } from '../../trainerFlow';
@@ -12,9 +12,8 @@ import { defaultVisualMentalProgress, normalizeVisualMentalProgress, type Visual
 import { MENTAL_MATH_OPPONENT_NAMES } from '../../data/mentalMathConfig';
 
 export type TableFillSessionConfig = SessionConfigBase & {
-  level: 'accuracy-choice' | 'accuracy-input' | 'speed' | 'race';
-  starLevel?: 1 | 2 | 3;
-  timeLimitSec?: number;
+  level: 'accuracy-choice' | 'accuracy-input' | 'race';
+  starLevel?: 2 | 3;
   npcSecondsPerProblem?: number;
   add: number;
   aValues: number[];
@@ -47,8 +46,7 @@ function makePresets(cfg: { add: number; aValues: number[] }): Array<PresetDefin
   });
   const cellCount = Math.max(1, cfg.aValues.length);
   const label = `Заполни ${cellCount} ячеек`;
-  const speedLimitSec = Math.max(15, Math.min(90, cellCount * 4));
-  const npcSeconds = { 1: 6, 2: 5, 3: 4 } as const;
+  const npcSeconds = { 2: 5, 3: 4 } as const;
 
   return [
     {
@@ -64,27 +62,6 @@ function makePresets(cfg: { add: number; aValues: number[] }): Array<PresetDefin
       description: label,
       defaultConfig: base('accuracy-input'),
       successPolicy: { type: 'minAccuracy', min: 0.8 },
-    },
-    {
-      id: 'speed',
-      title: 'Скорость',
-      description: `Успей за ${speedLimitSec} секунд • ${label}`,
-      defaultConfig: { presetId: 'speed', level: 'speed', timeLimitSec: speedLimitSec, add: cfg.add, aValues: cfg.aValues },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: `Заполни ${label.toLowerCase()} быстрее Новичка`,
-      defaultConfig: {
-        presetId: 'race:1',
-        level: 'race',
-        starLevel: 1,
-        npcSecondsPerProblem: npcSeconds[1],
-        add: cfg.add,
-        aValues: cfg.aValues,
-      },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
     {
       id: 'race:2',
@@ -136,10 +113,8 @@ export function makeTableFillDefinition(args: { trainerId: string; backHref: str
       type: 'custom',
       isLocked: ({ presetId, progress }) => {
         const p = progress as any;
-        if (presetId === 'speed') return !p?.['accuracy-input'];
-        if (presetId === 'race:1') return !p?.speed;
-        if (presetId === 'race:2') return !p?.speed || Number(p?.raceStars || 0) < 1;
-        if (presetId === 'race:3') return !p?.speed || Number(p?.raceStars || 0) < 2;
+        if (presetId === 'race:2') return !p?.['accuracy-input'];
+        if (presetId === 'race:3') return Number(p?.raceStars || 0) < 2;
         return false; // training + accuracy are open by default
       },
     },
@@ -165,13 +140,12 @@ export function makeTableFillDefinition(args: { trainerId: string; backHref: str
           add={config.add}
           aValues={config.aValues}
           level={config.level}
-          timeLimitSec={config.timeLimitSec}
           starLevel={config.starLevel}
           npcSecondsPerProblem={config.npcSecondsPerProblem}
           setMetrics={setMetrics}
           onFinish={({ correct, solved, total, mistakes, timeSec, won, starsEarned }) => {
             const level = config.level;
-            const success = level === 'speed' || level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
+            const success = level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
             const result: SessionResult = { success, metrics: { total, solved, correct, mistakes, timeSec, won: !!won, starsEarned } };
             onFinish(result);
           }}
@@ -190,9 +164,8 @@ export function makeTableFillDefinition(args: { trainerId: string; backHref: str
 
       if (config.level === 'accuracy-choice' && result.success) next['accuracy-choice'] = true;
       if (config.level === 'accuracy-input' && result.success) next['accuracy-input'] = true;
-      if (config.level === 'speed' && !!result.metrics.won) next.speed = true;
       if (config.level === 'race') {
-        const star = Math.max(1, Math.min(3, Math.floor(Number(config.starLevel || 1)))) as 1 | 2 | 3;
+        const star = Math.max(2, Math.min(3, Math.floor(Number(config.starLevel || 2)))) as 2 | 3;
         if (!!result.metrics.won) next.raceStars = Math.max(next.raceStars, star);
       }
 
@@ -203,7 +176,7 @@ export function makeTableFillDefinition(args: { trainerId: string; backHref: str
       try {
         const presetId = String(config.presetId || '');
         const isRace = presetId.startsWith('race:') || config.level === 'race';
-        const starLevel = isRace ? (Math.max(1, Math.min(3, Number(config.starLevel || presetId.split(':')[1] || 1))) as 1 | 2 | 3) : undefined;
+        const starLevel = isRace ? (Math.max(2, Math.min(3, Number(config.starLevel || presetId.split(':')[1] || 2))) as 2 | 3) : undefined;
         const level = isRace ? 'race' : config.level;
         const won = !!result.metrics.won;
         const res = await fetch('/api/progress/record', {

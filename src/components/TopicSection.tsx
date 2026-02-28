@@ -3,14 +3,14 @@
 import type { Exercise } from '../data/exerciseData';
 
 import { ExerciseCardStageStyle as ExerciseCard } from './ExerciseCardStageStyle';
-import { useCrystals } from '../lib/useCrystals';
+import { useStars } from '../lib/useStars';
 
 export function TopicSection(props: {
   title: string;
   exercises: Exercise[];
   onExerciseClick?: (exerciseId: string) => void;
 }) {
-  const { getExerciseCrystals, getExerciseCrystalsCap, getExerciseProgress } = useCrystals();
+  const { getExerciseStars, getExerciseStarsCap, getExerciseProgress } = useStars();
 
   return (
     <div className="space-y-3">
@@ -26,9 +26,9 @@ export function TopicSection(props: {
               title={exercise.title}
               description={exercise.description}
               unlocked={exercise.unlocked}
-              crystalsEarned={getExerciseCrystals(exercise.id)}
-              crystalsTotal={getExerciseCrystalsCap(exercise.id)}
-              fallbackCrystalsTotal={exercise.total}
+              starsEarned={getExerciseStars(exercise.id)}
+              starsTotal={getExerciseStarsCap(exercise.id)}
+              fallbackStarsTotal={exercise.total}
               preRaceDone={!!status?.preRaceDone}
               raceStars={(status?.raceStars ?? 0) as 0 | 1 | 2 | 3}
               onClick={props.onExerciseClick ? () => props.onExerciseClick?.(exercise.id) : undefined}

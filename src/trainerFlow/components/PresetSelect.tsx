@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import { ArrowLeft, Gauge, Gem, Lock, Shield, Swords, Target, Settings } from 'lucide-react';
+import { ArrowLeft, Lock, Shield, Swords, Target, Settings } from 'lucide-react';
 
 import type { PresetDefinition, PresetId, SessionConfigBase } from '../types';
 import { cn } from '../../lib/utils';
@@ -11,7 +11,7 @@ import { Button } from '../../components/ui/button';
 function presetUi(presetId: string): {
   icon: ReactNode;
   iconWrapClassName: string;
-  rewardKind: 'none' | 'crystals10' | 'stars';
+  rewardKind: 'none' | 'stars';
   rewardValue?: number;
 } {
   // NOTE: This is intentionally simple/heuristic. Presets are still the source of truth.
@@ -26,16 +26,8 @@ function presetUi(presetId: string): {
     return {
       icon: <Target className="w-6 h-6 text-primary" />,
       iconWrapClassName: 'bg-primary/10 border-primary/15',
-      rewardKind: 'crystals10',
-      rewardValue: 10,
-    };
-  }
-  if (presetId === 'speed' || presetId === 'lvl3') {
-    return {
-      icon: <Gauge className="w-6 h-6 text-primary" />,
-      iconWrapClassName: 'bg-primary/10 border-primary/15',
-      rewardKind: 'crystals10',
-      rewardValue: 10,
+      rewardKind: 'stars',
+      rewardValue: 1,
     };
   }
   if (String(presetId).startsWith('race:')) {
@@ -109,12 +101,7 @@ export function PresetSelect<TProgress, TConfig extends SessionConfigBase>(props
             const ui = presetUi(String(preset.id));
             const completed = props.isCompleted(preset.id);
             const reward =
-              ui.rewardKind === 'crystals10' ? (
-                <div className={cn('inline-flex items-center gap-1', completed ? 'text-muted-foreground' : 'text-primary')}>
-                  <Gem className="w-4 h-4" />
-                  <span className="tabular-nums font-semibold">{ui.rewardValue ?? 10}</span>
-                </div>
-              ) : ui.rewardKind === 'stars' ? (
+              ui.rewardKind === 'stars' ? (
                 <div className="inline-flex items-center gap-1 text-muted-foreground">
                   <span className="font-bold">⭐</span>
                   <span className="tabular-nums font-semibold">{ui.rewardValue ?? 1}</span>

@@ -54,6 +54,7 @@ export function middleware(req: NextRequest) {
   const isProtected =
     /^\/(addition|subtraction|multiplication|division)(\/|$)/.test(pathname) ||
     /^\/class-\d+\/(addition|subtraction|multiplication|division)(\/|$)/.test(pathname) ||
+    pathname === '/home' ||
     pathname === '/settings' ||
     pathname === '/billing' ||
     pathname === '/promoter' ||

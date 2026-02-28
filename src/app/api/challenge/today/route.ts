@@ -53,13 +53,13 @@ export async function GET() {
   }
 
   const nextMilestoneDays = 7;
-  const milestoneRewardCrystals = nextMilestoneDays * 10;
+  const milestoneRewardStars = nextMilestoneDays * 10;
 
   const payload = {
     today: {
       title: 'Ежедневная тренировка',
       description: 'Пройди одну успешную сессию в любом тренажёре',
-      rewardCrystals: 50,
+      rewardStars: 50,
       progress: Math.min(1, successToday),
       total: 1,
       timeLimitLabel: '—',
@@ -69,7 +69,7 @@ export async function GET() {
     streak: {
       streakDays,
       nextMilestoneDays,
-      milestoneRewardCrystals,
+      milestoneRewardStars,
     },
   };
 

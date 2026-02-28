@@ -3,7 +3,7 @@
 import type { MentalMathLevel, MentalMathTrainerConfig } from '../../data/mentalMathConfig';
 import { getMentalMathConfig, MENTAL_MATH_OPPONENT_NAMES } from '../../data/mentalMathConfig';
 import MentalMathSession from './MentalMathSession';
-import { emitProgressUpdated } from '../../lib/crystals';
+import { emitProgressUpdated } from '../../lib/stars';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { arithmeticDbTrainerId, arithmeticStorageKey } from '../../lib/trainerIds';
 import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinition } from '../../trainerFlow';
@@ -12,17 +12,16 @@ import { TrainerRecordProgressResponseDtoSchema, type NewlyUnlockedAchievementDt
 export type MentalMathProgress = {
   'accuracy-choice': boolean;
   'accuracy-input': boolean;
-  speed: boolean;
   raceStars: number; // 0..3
 };
 
 export type MentalMathSessionConfig = SessionConfigBase & {
-  level: MentalMathLevel;
-  starLevel?: 1 | 2 | 3;
+  level: Exclude<MentalMathLevel, 'speed'>;
+  starLevel?: 2 | 3;
 };
 
 function defaultProgress(): MentalMathProgress {
-  return { 'accuracy-choice': false, 'accuracy-input': false, speed: false, raceStars: 0 };
+  return { 'accuracy-choice': false, 'accuracy-input': false, raceStars: 0 };
 }
 
 function clampStars(v: unknown): 0 | 1 | 2 | 3 {
@@ -37,7 +36,6 @@ function normalizeProgress(p: any): MentalMathProgress {
   return {
     'accuracy-choice': !!p?.['accuracy-choice'],
     'accuracy-input': !!p?.['accuracy-input'],
-    speed: !!p?.speed,
     raceStars: clampStars(p?.raceStars),
   };
 }
@@ -61,13 +59,11 @@ function saveLocalProgress(config: MentalMathTrainerConfig, p: MentalMathProgres
   }
 }
 
-function presetBase(level: MentalMathLevel): Pick<MentalMathSessionConfig, 'level' | 'starLevel'> {
-  if (level === 'race') return { level: 'race', starLevel: 1 };
-  return { level };
+function presetBase(level: MentalMathLevel): Pick<MentalMathSessionConfig, 'level'> {
+  return { level: level as MentalMathSessionConfig['level'] };
 }
 
 function makePresets(config: MentalMathTrainerConfig): Array<PresetDefinition<MentalMathSessionConfig, MentalMathProgress>> {
-  const speedLimit = config.levels.speed.timeLimit || 60;
   const problems = (lvl: MentalMathLevel) => config.levels[lvl].problems;
 
   const presets: Array<PresetDefinition<MentalMathSessionConfig, MentalMathProgress>> = [
@@ -84,21 +80,6 @@ function makePresets(config: MentalMathTrainerConfig): Array<PresetDefinition<Me
       description: `Введи ответ с клавиатуры • ${problems('accuracy-input')} примеров`,
       defaultConfig: { presetId: 'accuracy-input', ...presetBase('accuracy-input') },
       successPolicy: { type: 'minAccuracy', min: 0.8 },
-    },
-    {
-      id: 'speed',
-      title: 'Скорость',
-      description: `Успей решить за ${speedLimit} секунд • ${problems('speed')} примеров`,
-      defaultConfig: { presetId: 'speed', ...presetBase('speed') },
-      // For speed we treat "won" from session as success (see renderSession mapping).
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: `Реши ${problems('race')} примеров быстрее Новичка`,
-      defaultConfig: { presetId: 'race:1', level: 'race', starLevel: 1 },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони противника' },
     },
     {
       id: 'race:2',
@@ -120,7 +101,7 @@ function makePresets(config: MentalMathTrainerConfig): Array<PresetDefinition<Me
 }
 
 function computeSuccess(level: MentalMathLevel, args: { correct: number; total: number; won?: boolean }): boolean {
-  if (level === 'speed' || level === 'race') return !!args.won;
+  if (level === 'race') return !!args.won;
   // accuracy modes
   return args.total > 0 ? args.correct >= args.total * 0.8 : false;
 }
@@ -145,10 +126,8 @@ export function makeMentalMathDefinition(args: { trainerId: string; backHref: st
       type: 'custom',
       isLocked: ({ presetId, progress }) => {
         const p = progress as any;
-        if (presetId === 'speed') return !p?.['accuracy-input'];
-        if (presetId === 'race:1') return !p?.speed;
-        if (presetId === 'race:2') return !p?.speed || Number(p?.raceStars || 0) < 1;
-        if (presetId === 'race:3') return !p?.speed || Number(p?.raceStars || 0) < 2;
+        if (presetId === 'race:2') return !p?.['accuracy-input'];
+        if (presetId === 'race:3') return Number(p?.raceStars || 0) < 2;
         return false; // training + accuracy are open by default
       },
     },
@@ -177,7 +156,7 @@ export function makeMentalMathDefinition(args: { trainerId: string; backHref: st
 
     renderSession: ({ config: sessionConfig, onFinish, onBackToSelect, setMetrics }) => {
       const level = sessionConfig.level;
-      const starLevel = sessionConfig.level === 'race' ? (sessionConfig.starLevel ?? 1) : undefined;
+      const starLevel = sessionConfig.level === 'race' ? (sessionConfig.starLevel ?? 2) : undefined;
       return (
         <MentalMathSession
           config={config}
@@ -196,7 +175,7 @@ export function makeMentalMathDefinition(args: { trainerId: string; backHref: st
                 mistakes,
                 timeSec,
                 won: !!won,
-                starsEarned: level === 'race' && success ? (starLevel ?? 1) : undefined,
+                starsEarned: level === 'race' && success ? (starLevel ?? 2) : undefined,
               },
             };
             onFinish(result);
@@ -217,8 +196,7 @@ export function makeMentalMathDefinition(args: { trainerId: string; backHref: st
 
       if (level === 'accuracy-choice' && total > 0 && correct >= total * 0.8) next['accuracy-choice'] = true;
       else if (level === 'accuracy-input' && total > 0 && correct >= total * 0.8) next['accuracy-input'] = true;
-      else if (level === 'speed' && won) next.speed = true;
-      else if (level === 'race' && won) next.raceStars = Math.max(next.raceStars, sessionConfig.starLevel ?? 1);
+      else if (level === 'race' && won) next.raceStars = Math.max(next.raceStars, sessionConfig.starLevel ?? 2);
 
       saveLocalProgress(config, next);
       emitProgressUpdated();
@@ -239,7 +217,7 @@ export function makeMentalMathDefinition(args: { trainerId: string; backHref: st
             correct,
             time: Math.floor(Number(result.metrics.timeSec || 0)),
             won,
-            starLevel: level === 'race' ? (sessionConfig.starLevel ?? 1) : undefined,
+            starLevel: level === 'race' ? (sessionConfig.starLevel ?? 2) : undefined,
           }),
         });
         const json: any = await res.json().catch(() => null);

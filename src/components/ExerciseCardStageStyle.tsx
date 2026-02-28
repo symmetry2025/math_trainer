@@ -1,6 +1,5 @@
 import {
   ChevronRight,
-  Gem,
   Lock,
   Star,
 } from 'lucide-react';
@@ -38,18 +37,18 @@ export function ExerciseCardStageStyle(props: {
   title: string;
   description?: string;
   unlocked: boolean;
-  crystalsEarned: number;
-  crystalsTotal: number;
-  /** Optional fallback for locked/unwired exercises so the layout stays uniform (e.g. 100). */
-  fallbackCrystalsTotal?: number;
+  starsEarned: number;
+  starsTotal: number;
+  /** Optional fallback for locked/unwired exercises so the layout stays uniform (e.g. 6). */
+  fallbackStarsTotal?: number;
   preRaceDone: boolean;
   raceStars: 0 | 1 | 2 | 3;
   onClick?: () => void;
 }) {
-  const baseTotal = Math.max(0, Math.floor(props.crystalsTotal || 0));
-  const fallbackTotal = Math.max(0, Math.floor(props.fallbackCrystalsTotal || 0));
+  const baseTotal = Math.max(0, Math.floor(props.starsTotal || 0));
+  const fallbackTotal = Math.max(0, Math.floor(props.fallbackStarsTotal || 0));
   const total = baseTotal > 0 ? baseTotal : !props.unlocked && fallbackTotal > 0 ? fallbackTotal : 0;
-  const earned = Math.max(0, Math.floor(props.crystalsEarned || 0));
+  const earned = Math.max(0, Math.floor(props.starsEarned || 0));
   const raceStars = props.raceStars ?? 0;
   const tier = tierConfig[raceStars];
   const ordinalText = String(Math.max(1, Math.floor(Number(props.ordinal || 1))));
@@ -107,10 +106,10 @@ export function ExerciseCardStageStyle(props: {
           </div>
         </div>
 
-        {/* Right side: crystals + arrow */}
+        {/* Right side: stars progress + arrow */}
         <div className="flex items-center gap-3 shrink-0">
           <div className={cn('inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums', total > 0 ? 'text-foreground' : 'invisible')}>
-            <Gem className="w-4 h-4 text-muted-foreground" />
+            <Star className="w-4 h-4 fill-warning text-warning" />
             <span>{earned}</span>
             <span className="text-muted-foreground/60">/</span>
             <span className="text-muted-foreground">{total}</span>

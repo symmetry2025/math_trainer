@@ -21,6 +21,8 @@ import { NUMBER_COMPOSITION_CONFIGS } from '../../../data/numberCompositionConfi
 import { TABLE_FILL_CONFIGS } from '../../../data/tableFillConfig';
 import { SUM_TABLE_CONFIGS } from '../../../data/sumTableConfig';
 import { SUB_TABLE_CONFIGS } from '../../../data/subTableConfig';
+import { additionData } from '../../../data/exerciseData';
+import { ClassOperationBlockPage } from './ClassOperationBlockPage';
 
 // Subtraction deps
 import ColumnSubtractionSession from '../../../trainers/column/subtraction/ColumnSubtractionSession';
@@ -37,6 +39,11 @@ export function ClassOperationTrainerPage(props: { grade: Grade; op: Operation; 
   const backHref = props.basePath;
 
   if (props.op === 'addition') {
+    const gradeSections = additionData.find((g) => g.grade === props.grade)?.sections ?? [];
+    const isBlock = gradeSections.some((s) => s.id === exerciseId);
+    if (isBlock) {
+      return <ClassOperationBlockPage grade={props.grade} op="addition" basePath={props.basePath} blockId={exerciseId} />;
+    }
     if (exerciseId === 'column-addition') {
       return <TrainerFlow definition={makeColumnDefinition({ trainerId: 'column-addition', backHref, Game: ColumnAdditionSession })} />;
     }

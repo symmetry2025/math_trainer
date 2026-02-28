@@ -138,10 +138,8 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
     if (presetId === 'accuracy-choice') return !!p['accuracy-choice'];
     if (presetId === 'accuracy-input') return !!p['accuracy-input'];
     if (presetId === 'accuracy') return !!p.accuracy;
-    if (presetId === 'speed') return !!p.speed;
     if (presetId === 'lvl1') return !!p.lvl1;
     if (presetId === 'lvl2') return !!p.lvl2;
-    if (presetId === 'lvl3') return !!p.lvl3;
     if (String(presetId).startsWith('race:')) {
       const n = Number(String(presetId).split(':')[1] || 0);
       return Number(p.raceStars || 0) >= n;
@@ -235,18 +233,21 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
       setNewlyUnlockedAchievements(outcome.newlyUnlockedAchievements ?? []);
 
       const presetId = String(config.presetId || '');
-      const shouldShowCrystals = presetId === 'accuracy' || presetId === 'accuracy-input' || presetId === 'speed';
-      const earnedCrystals = (() => {
-        if (!shouldShowCrystals) return undefined;
+      const earnedStars = (() => {
         try {
           const before = prevProgress as any;
           const after = nextProgress as any;
-          if (presetId === 'accuracy-input') return !before?.['accuracy-input'] && !!after?.['accuracy-input'] ? 10 : 0;
-          if (presetId === 'accuracy') return !before?.accuracy && !!after?.accuracy ? 10 : 0;
-          if (presetId === 'speed') return !before?.speed && !!after?.speed ? 10 : 0;
-          return 0;
+          if (!r.success) return undefined;
+          if (presetId === 'accuracy-input') return !before?.['accuracy-input'] && !!after?.['accuracy-input'] ? 1 : 0;
+          if (presetId === 'accuracy') return !before?.accuracy && !!after?.accuracy ? 1 : 0;
+          if (presetId === 'lvl2') return !before?.lvl2 && !!after?.lvl2 ? 1 : 0;
+          if (presetId.startsWith('race:')) {
+            const n = Math.max(1, Math.min(3, Math.floor(Number(presetId.split(':')[1] || 0)))) as 1 | 2 | 3;
+            return Number(before?.raceStars || 0) < n && Number(after?.raceStars || 0) >= n ? n : 0;
+          }
+          return undefined;
         } catch {
-          return 0;
+          return undefined;
         }
       })();
 
@@ -278,8 +279,8 @@ export function TrainerFlow<TProgress, TConfig extends SessionConfigBase>(props:
       setUnlockedPresetTitle(unlockedTitle);
 
       const nextResult: SessionResult =
-        typeof earnedCrystals === 'number'
-          ? { ...r, metrics: { ...r.metrics, crystalsEarned: earnedCrystals } }
+        typeof earnedStars === 'number'
+          ? { ...r, metrics: { ...r.metrics, starsEarned: (earnedStars as any) } }
           : r;
       setResult(nextResult);
       const hasDbAchievements = (outcome.newlyUnlockedAchievements?.length ?? 0) > 0;

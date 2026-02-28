@@ -28,7 +28,7 @@ const opUi: Record<
     title: 'Сложение',
     subtitle: 'Тренируй навыки сложения чисел',
     icon: Plus,
-    iconClassName: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    iconClassName: 'bg-gradient-to-br from-[#12363A] to-[#0F2A2E] shadow-[0_10px_30px_rgba(18,54,58,0.45)]',
   },
   subtraction: {
     title: 'Вычитание',
@@ -151,7 +151,7 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
           props.op === 'addition' && 'flex-1',
         )}
       >
-        <div className="flex items-center gap-4 animate-fade-in">
+        <div className="relative z-[45] flex items-center gap-4 animate-fade-in">
           <div className={`w-14 h-14 rounded-2xl ${ui.iconClassName} flex items-center justify-center shadow-lg`}>
             <Icon className="w-6 h-6 text-white" />
           </div>
@@ -160,6 +160,11 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
               {ui.title}
             </h1>
             <p className="text-muted-foreground">{ui.subtitle}</p>
+          </div>
+          <div className="flex-none text-right">
+            <div className="text-2xl md:text-3xl font-extrabold text-foreground text-cartoon-shadow uppercase tracking-wide tabular-nums whitespace-nowrap">
+              {props.grade} класс
+            </div>
           </div>
         </div>
 
@@ -174,28 +179,30 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
                 <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen mt-10 md:mt-12">
                   <div className="relative h-[360px] md:h-[420px] flex items-center justify-center w-full px-4 md:px-8 lg:px-0">
                     {sections.length ? (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-4 md:top-6 z-30">
+                    <div className="absolute left-1/2 -translate-x-1/2 top-0 z-[45]">
                         <div className="text-xl md:text-2xl font-extrabold text-foreground text-cartoon-shadow tracking-wide tabular-nums">
                           {`${Math.min(sections.length, selectedIndex + 1)} / ${sections.length}`}
                         </div>
                       </div>
                     ) : null}
 
+                    {sections.length ? (
+                      <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-2 md:bottom-3 z-[45]">
+                        <div className="text-xl md:text-2xl font-extrabold text-foreground text-cartoon-shadow uppercase tracking-wide">
+                          {sections[selectedIndex]?.title || ''}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className="pointer-events-none absolute inset-0 z-20 flex items-center">
-                    <div className="relative w-full h-full">
-                      {/* 
-                        Place arrows in the middle of the gap between center slide and side slides.
-                        On md the slide basis is ~46% (half = 23%) => center left edge at 27%.
-                        On lg the slide basis is ~36% (half = 18%) => center left edge at 32%.
-                        gap-6 = 24px, arrow size = 44px => shift by (gap/2 + arrow/2) = 12px + 22px = 34px.
-                      */}
+                    <div className="relative w-full h-full [--planet-center-w:100%] md:[--planet-center-w:46%] lg:[--planet-center-w:36%]">
                       <button
                         type="button"
                         onClick={scrollPrev}
                         disabled={sections.length < 2 || !emblaApi}
                         className={cn(
-                          'pointer-events-auto absolute top-1/2 -translate-y-1/2',
-                          'left-4 md:left-[calc(27%-34px)] lg:left-[calc(32%-34px)]',
+                          'pointer-events-auto absolute top-1/2 -translate-y-1/2 -translate-x-1/2',
+                          'left-[calc((100%-var(--planet-center-w))/2)]',
                           'w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 disabled:opacity-40',
                           'transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
                         )}
@@ -209,8 +216,8 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
                         onClick={scrollNext}
                         disabled={sections.length < 2 || !emblaApi}
                         className={cn(
-                          'pointer-events-auto absolute top-1/2 -translate-y-1/2',
-                          'right-4 md:right-[calc(27%-34px)] lg:right-[calc(32%-34px)]',
+                          'pointer-events-auto absolute top-1/2 -translate-y-1/2 translate-x-1/2',
+                          'right-[calc((100%-var(--planet-center-w))/2)]',
                           'w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 disabled:opacity-40',
                           'transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
                         )}
@@ -227,8 +234,7 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
                         const planetIdx = planetIdxForSectionIndex(idx);
                         const planetSrc = `/space/galaxies/green/planets/planet-green-${planetIdx}.svg`;
                         const isSelected = idx === selectedIndex;
-                        const sizeSeedBase = [84, 96, 110, 90, 102, 86, 116][(planetIdx - 1) % 7] ?? 96;
-                        const sizeSeed = Math.round(sizeSeedBase * 1.2);
+                        const planetSize = isSelected ? 'clamp(200px, 56vw, 360px)' : 'clamp(140px, 26vw, 260px)';
                         return (
                           <div key={section.id} className="flex-none basis-[100%] md:basis-[46%] lg:basis-[36%] min-w-0">
                             <button
@@ -251,12 +257,8 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
                               <div
                                 className="relative"
                                 style={{
-                                  width: isSelected
-                                    ? `clamp(${Math.max(180, Math.round(sizeSeed * 1.15))}px, 56vw, ${Math.round(sizeSeed * 2.8)}px)`
-                                    : `clamp(140px, 26vw, ${Math.round(sizeSeed * 2.0)}px)`,
-                                  height: isSelected
-                                    ? `clamp(${Math.max(180, Math.round(sizeSeed * 1.15))}px, 56vw, ${Math.round(sizeSeed * 2.8)}px)`
-                                    : `clamp(140px, 26vw, ${Math.round(sizeSeed * 2.0)}px)`,
+                                  width: planetSize,
+                                  height: planetSize,
                                 }}
                               >
                                 <img
@@ -266,14 +268,6 @@ export function ClassOperationListPage(props: { grade: Grade; op: Operation; bas
                                   loading={isSelected ? 'eager' : 'lazy'}
                                   decoding="async"
                                 />
-                              </div>
-                              <div
-                                className={cn(
-                                  'text-xl md:text-2xl font-extrabold text-foreground text-cartoon-shadow uppercase tracking-wide',
-                                  isSelected ? 'opacity-100' : 'opacity-0',
-                                )}
-                              >
-                                {section.title}
                               </div>
                             </button>
                           </div>

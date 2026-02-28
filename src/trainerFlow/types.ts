@@ -115,8 +115,6 @@ export type SessionMetrics = {
   timeSec?: number;
   starsEarned?: 0 | 1 | 2 | 3;
   won?: boolean;
-  /** Crystals earned by THIS run (typically for accuracy/speed stages). */
-  crystalsEarned?: number;
 };
 
 export type SessionResult = {

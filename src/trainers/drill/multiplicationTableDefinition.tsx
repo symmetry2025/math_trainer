@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 
 import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinition } from '../../trainerFlow';
 import { MultiplicationTableSession, type MultiplicationTableSessionConfig } from './MultiplicationTableSession';
-import { emitProgressUpdated } from '../../lib/crystals';
+import { emitProgressUpdated } from '../../lib/stars';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { progressStorageKey } from '../../lib/trainerIds';
 import { TrainerRecordProgressResponseDtoSchema, type NewlyUnlockedAchievementDto } from '@smmtry/shared';
@@ -14,12 +14,11 @@ type MultiplicationTableConfig = SessionConfigBase & MultiplicationTableSessionC
 type MultiplicationTableProgress = {
   lvl1: boolean;
   lvl2: boolean;
-  lvl3: boolean;
   raceStars: 0 | 1 | 2 | 3;
 };
 
 function defaultProgress(): MultiplicationTableProgress {
-  return { lvl1: false, lvl2: false, lvl3: false, raceStars: 0 };
+  return { lvl1: false, lvl2: false, raceStars: 0 };
 }
 
 function clampStars(v: unknown): 0 | 1 | 2 | 3 {
@@ -34,7 +33,6 @@ function normalizeProgress(p: any): MultiplicationTableProgress {
   return {
     lvl1: !!p?.lvl1,
     lvl2: !!p?.lvl2,
-    lvl3: !!p?.lvl3,
     raceStars: clampStars(p?.raceStars),
   };
 }
@@ -85,28 +83,11 @@ function makePresets(multiplier: number): Array<PresetDefinition<MultiplicationT
       successPolicy: { type: 'minAccuracy', min: 0.8 },
     },
     {
-      id: 'lvl3',
-      title: 'Скорость',
-      description: 'Ввод • вперемешку • 20 примеров',
-      defaultConfig: { presetId: 'lvl3', ...base, order: 'mixed', totalProblems: 20, answerInputMode: 'manual' },
-      unlock: { isLocked: ({ progress }) => !progress.lvl2, lockedReason: () => 'Сначала пройди Уровень 2' },
-      // custom: allow up to 20% mistakes while correcting (untilCorrect mode)
-      successPolicy: { type: 'custom', eval: ({ metrics }) => Number(metrics.mistakes || 0) <= 4, label: 'Не более 4 ошибок' },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: 'Реши 20 примеров быстрее Новичка • 6с/пример',
-      defaultConfig: { presetId: 'race:1', ...base, order: 'mixed', totalProblems: 20, answerInputMode: 'manual', race: { starLevel: 1, npcSecondsPerProblem: 6 } },
-      unlock: { isLocked: ({ progress }) => !progress.lvl3, lockedReason: () => 'Сначала пройди Уровень 3' },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
-    },
-    {
       id: 'race:2',
       title: 'Знаток',
       description: 'Реши 36 примеров быстрее Знатока • 4с/пример',
       defaultConfig: { presetId: 'race:2', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual', race: { starLevel: 2, npcSecondsPerProblem: 4 } },
-      unlock: { isLocked: ({ progress }) => progress.raceStars < 1, lockedReason: () => 'Сначала победи ⭐1' },
+      unlock: { isLocked: ({ progress }) => !progress.lvl2, lockedReason: () => 'Сначала пройди Точность' },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
     {
@@ -153,28 +134,11 @@ function makePresetsSet(multipliers: number[]): Array<PresetDefinition<Multiplic
       successPolicy: { type: 'minAccuracy', min: 0.8 },
     },
     {
-      id: 'lvl3',
-      title: 'Скорость',
-      description: 'Ввод • вперемешку • 36 примеров',
-      defaultConfig: { presetId: 'lvl3', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual' },
-      unlock: { isLocked: ({ progress }) => !progress.lvl2, lockedReason: () => 'Сначала пройди Уровень 2' },
-      // custom: allow up to 20% mistakes while correcting (untilCorrect mode)
-      successPolicy: { type: 'custom', eval: ({ metrics }) => Number(metrics.mistakes || 0) <= 7, label: 'Не более 7 ошибок' },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: 'Реши 36 примеров быстрее Новичка • 6с/пример',
-      defaultConfig: { presetId: 'race:1', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual', race: { starLevel: 1, npcSecondsPerProblem: 6 } },
-      unlock: { isLocked: ({ progress }) => !progress.lvl3, lockedReason: () => 'Сначала пройди Уровень 3' },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
-    },
-    {
       id: 'race:2',
       title: 'Знаток',
       description: 'Реши 36 примеров быстрее Знатока • 4с/пример',
       defaultConfig: { presetId: 'race:2', ...base, order: 'mixed', totalProblems: 36, answerInputMode: 'manual', race: { starLevel: 2, npcSecondsPerProblem: 4 } },
-      unlock: { isLocked: ({ progress }) => progress.raceStars < 1, lockedReason: () => 'Сначала победи ⭐1' },
+      unlock: { isLocked: ({ progress }) => !progress.lvl2, lockedReason: () => 'Сначала пройди Точность' },
       successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
     {
@@ -227,7 +191,6 @@ function makeMultiplicationTableDefinition(args: {
       isCompleted: ({ presetId, progress }) => {
         if (presetId === 'lvl1') return !!(progress as any).lvl1;
         if (presetId === 'lvl2') return !!(progress as any).lvl2;
-        if (presetId === 'lvl3') return !!(progress as any).lvl3;
         if (String(presetId).startsWith('race:')) {
           const n = Number(String(presetId).split(':')[1] || 0);
           return Number((progress as any).raceStars || 0) >= n;
@@ -255,9 +218,8 @@ function makeMultiplicationTableDefinition(args: {
           onFinish={({ correct, solved, total, mistakes, timeSec, won, starsEarned }) => {
             const id = String(config.presetId || '');
             const isRace = id.startsWith('race:');
-            const isLvl3 = id === 'lvl3';
 
-            const success = isRace ? !!won : isLvl3 ? mistakes <= 4 : correct >= total * 0.8;
+            const success = isRace ? !!won : correct >= total * 0.8;
             const result: SessionResult = {
               success,
               metrics: {
@@ -280,7 +242,7 @@ function makeMultiplicationTableDefinition(args: {
       const id = String(config.presetId || '');
       const isRace = id.startsWith('race:');
       const starLevel = isRace
-        ? (Number(id.split(':')[1] || 1) as 1 | 2 | 3)
+        ? (Number(id.split(':')[1] || 2) as 2 | 3)
         : undefined;
 
       const correct = Math.max(0, Math.floor(Number(result.metrics.correct || 0)));
@@ -293,7 +255,7 @@ function makeMultiplicationTableDefinition(args: {
       let nextProgress: MultiplicationTableProgress | null = null;
       let newlyUnlockedAchievements: NewlyUnlockedAchievementDto[] = [];
       try {
-        const level = isRace ? 'race' : (id as 'lvl1' | 'lvl2' | 'lvl3');
+        const level = isRace ? 'race' : (id as 'lvl1' | 'lvl2');
         const res = await fetch('/api/progress/record', {
           method: 'POST',
           credentials: 'include',
@@ -327,7 +289,6 @@ function makeMultiplicationTableDefinition(args: {
         if (result.success) {
           if (id === 'lvl1') fallback.lvl1 = true;
           else if (id === 'lvl2') fallback.lvl2 = true;
-          else if (id === 'lvl3') fallback.lvl3 = true;
           else if (isRace) {
             const stars = clampStars(result.metrics.starsEarned || 0);
             if (stars > fallback.raceStars) fallback.raceStars = stars;

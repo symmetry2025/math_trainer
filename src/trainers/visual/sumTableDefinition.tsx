@@ -3,7 +3,7 @@
 import { TrainerRecordProgressResponseDtoSchema, type NewlyUnlockedAchievementDto } from '@smmtry/shared';
 
 import type { PresetDefinition, SessionConfigBase, SessionResult, TrainerDefinition } from '../../trainerFlow';
-import { emitProgressUpdated } from '../../lib/crystals';
+import { emitProgressUpdated } from '../../lib/stars';
 import { hydrateProgressFromDb, wasHydratedRecently } from '../../lib/progressHydration';
 import { arithmeticDbTrainerId, arithmeticStorageKey } from '../../lib/trainerIds';
 import { getSumTableConfig, type SumTableKind } from '../../data/sumTableConfig';
@@ -11,9 +11,8 @@ import { defaultVisualMentalProgress, normalizeVisualMentalProgress, type Visual
 import { SumTableSession } from './SumTableSession';
 
 export type SumTableSessionConfig = SessionConfigBase & {
-  level: 'accuracy-choice' | 'accuracy-input' | 'speed' | 'race';
-  starLevel?: 1 | 2 | 3;
-  timeLimitSec?: number;
+  level: 'accuracy-choice' | 'accuracy-input' | 'race';
+  starLevel?: 2 | 3;
   npcSecondsPerProblem?: number;
   kind: SumTableKind;
   columns: number;
@@ -76,8 +75,7 @@ function makePresets(cfg: {
   });
 
   const label = `Заполни ${Math.max(1, cfg.columns)} колонок`;
-  const speedLimitSec = Math.max(20, Math.min(120, Math.max(1, cfg.columns) * 6));
-  const npcSeconds = { 1: 7, 2: 6, 3: 5 } as const;
+  const npcSeconds = { 2: 6, 3: 5 } as const;
 
   return [
     {
@@ -93,51 +91,6 @@ function makePresets(cfg: {
       description: label,
       defaultConfig: base('accuracy-input'),
       successPolicy: { type: 'minAccuracy', min: 0.8 },
-    },
-    {
-      id: 'speed',
-      title: 'Скорость',
-      description: `Успей за ${speedLimitSec} секунд • ${label}`,
-      defaultConfig: {
-        presetId: 'speed',
-        level: 'speed',
-        timeLimitSec: speedLimitSec,
-        kind: cfg.kind,
-        columns: cfg.columns,
-        sumMin: cfg.sumMin,
-        sumMax: cfg.sumMax,
-        knownMin: cfg.knownMin,
-        knownMax: cfg.knownMax,
-        letter: cfg.letter,
-        letterValueMin: cfg.letterValueMin,
-        letterValueMax: cfg.letterValueMax,
-        addMin: cfg.addMin,
-        addMax: cfg.addMax,
-      },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Успей за время' },
-    },
-    {
-      id: 'race:1',
-      title: 'Новичок',
-      description: `Заполни ${label.toLowerCase()} быстрее Новичка`,
-      defaultConfig: {
-        presetId: 'race:1',
-        level: 'race',
-        starLevel: 1,
-        npcSecondsPerProblem: npcSeconds[1],
-        kind: cfg.kind,
-        columns: cfg.columns,
-        sumMin: cfg.sumMin,
-        sumMax: cfg.sumMax,
-        knownMin: cfg.knownMin,
-        knownMax: cfg.knownMax,
-        letter: cfg.letter,
-        letterValueMin: cfg.letterValueMin,
-        letterValueMax: cfg.letterValueMax,
-        addMin: cfg.addMin,
-        addMax: cfg.addMax,
-      },
-      successPolicy: { type: 'custom', eval: ({ metrics }) => !!metrics.won, label: 'Обгони соперника' },
     },
     {
       id: 'race:2',
@@ -219,10 +172,8 @@ export function makeSumTableDefinition(args: { trainerId: string; backHref: stri
       type: 'custom',
       isLocked: ({ presetId, progress }) => {
         const p = progress as any;
-        if (presetId === 'speed') return !p?.['accuracy-input'];
-        if (presetId === 'race:1') return !p?.speed;
-        if (presetId === 'race:2') return !p?.speed || Number(p?.raceStars || 0) < 1;
-        if (presetId === 'race:3') return !p?.speed || Number(p?.raceStars || 0) < 2;
+        if (presetId === 'race:2') return !p?.['accuracy-input'];
+        if (presetId === 'race:3') return Number(p?.raceStars || 0) < 2;
         return false;
       },
     },
@@ -257,13 +208,12 @@ export function makeSumTableDefinition(args: { trainerId: string; backHref: stri
           addMin={config.addMin}
           addMax={config.addMax}
           level={config.level}
-          timeLimitSec={config.timeLimitSec}
           starLevel={config.starLevel}
           npcSecondsPerProblem={config.npcSecondsPerProblem}
           setMetrics={setMetrics}
           onFinish={({ correct, solved, total, mistakes, timeSec, won, starsEarned }) => {
             const level = config.level;
-            const success = level === 'speed' || level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
+            const success = level === 'race' ? !!won : total > 0 ? correct >= total * 0.8 : false;
             const result: SessionResult = { success, metrics: { total, solved, correct, mistakes, timeSec, won: !!won, starsEarned } };
             onFinish(result);
           }}
@@ -277,9 +227,8 @@ export function makeSumTableDefinition(args: { trainerId: string; backHref: stri
 
       if (config.level === 'accuracy-choice' && result.success) next['accuracy-choice'] = true;
       if (config.level === 'accuracy-input' && result.success) next['accuracy-input'] = true;
-      if (config.level === 'speed' && !!result.metrics.won) next.speed = true;
       if (config.level === 'race') {
-        const star = Math.max(1, Math.min(3, Math.floor(Number(config.starLevel || 1)))) as 1 | 2 | 3;
+        const star = Math.max(2, Math.min(3, Math.floor(Number(config.starLevel || 2)))) as 2 | 3;
         if (!!result.metrics.won) next.raceStars = Math.max(next.raceStars, star);
       }
 
@@ -290,7 +239,7 @@ export function makeSumTableDefinition(args: { trainerId: string; backHref: stri
       try {
         const presetId = String(config.presetId || '');
         const isRace = presetId.startsWith('race:') || config.level === 'race';
-        const starLevel = isRace ? (Math.max(1, Math.min(3, Number(config.starLevel || presetId.split(':')[1] || 1))) as 1 | 2 | 3) : undefined;
+        const starLevel = isRace ? (Math.max(2, Math.min(3, Number(config.starLevel || presetId.split(':')[1] || 2))) as 2 | 3) : undefined;
         const level = isRace ? 'race' : config.level;
         const won = !!result.metrics.won;
         const total = Math.max(0, Math.floor(Number(result.metrics.total || 0)));

@@ -67,7 +67,6 @@ function applyProgressToStorage(trainerDbId: string, p: any): boolean {
       const next = {
         lvl1: !!p.lvl1,
         lvl2: !!p.lvl2,
-        lvl3: !!p.lvl3,
         raceStars: clampStars(p.raceStars),
       };
       window.localStorage.setItem(storageKey, JSON.stringify(next));
@@ -89,7 +88,6 @@ function applyProgressToStorage(trainerDbId: string, p: any): boolean {
     const next = {
       'accuracy-choice': !!p['accuracy-choice'],
       'accuracy-input': !!p['accuracy-input'],
-      speed: !!p.speed,
       raceStars: Number(p.raceStars || 0),
     };
     window.localStorage.setItem(storageKey, JSON.stringify(next));
@@ -100,7 +98,7 @@ function applyProgressToStorage(trainerDbId: string, p: any): boolean {
   // Column trainers store under `smmtry.trainer.progress:*`
   if (trainerDbId.startsWith('column-')) {
     const storageKey = `smmtry.trainer.progress:${trainerDbId}`;
-    const next = { accuracy: !!p.accuracy, speed: !!p.speed, raceStars: Number(p.raceStars || 0) };
+    const next = { accuracy: !!p.accuracy, raceStars: Number(p.raceStars || 0) };
     window.localStorage.setItem(storageKey, JSON.stringify(next));
     markHydrated(trainerDbId);
     return true;

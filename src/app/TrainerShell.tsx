@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Home, LogOut, Menu, Minus, Orbit, Plus, Rocket, Settings, Star, Trophy, User, Users, X } from 'lucide-react';
+import { BarChart3, Calculator, ChevronRight, CreditCard, Divide, Home, LogOut, Menu, Minus, Orbit, Plus, Rocket, Settings, Signal, Star, Trophy, User, Users, X } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useStars } from '../lib/useStars';
@@ -313,6 +313,46 @@ export function TrainerShell(props: { children: ReactNode }) {
     return '/home';
   }, [pathname]);
 
+  const [lastGalaxyHref, setLastGalaxyHref] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = 'smmtry.lastGalaxyHref';
+
+    const update = () => {
+      const p = window.location.pathname || '/';
+      const href = `${p}${window.location.search || ''}${window.location.hash || ''}`;
+      const isGalaxy = /^\/class-\d+\/(addition|subtraction|multiplication|division)(\/|$)/.test(p);
+
+      if (isGalaxy) {
+        try {
+          window.localStorage.setItem(key, href);
+        } catch {
+          // ignore
+        }
+        setLastGalaxyHref(href);
+        return;
+      }
+
+      try {
+        setLastGalaxyHref(window.localStorage.getItem(key));
+      } catch {
+        setLastGalaxyHref(null);
+      }
+    };
+
+    update();
+    window.addEventListener('hashchange', update);
+    return () => {
+      window.removeEventListener('hashchange', update);
+    };
+  }, [pathname]);
+
+  const galaxyNavHref = useMemo(() => {
+    const v = (lastGalaxyHref || '').trim();
+    if (v.startsWith('/class-')) return v;
+    return galaxyHref;
+  }, [galaxyHref, lastGalaxyHref]);
+
   const bottomActiveKey = useMemo(() => {
     if (pathname === '/home' || pathname.startsWith('/home/')) return 'home';
     if (pathname.startsWith('/progress/achievements')) return 'achievements';
@@ -321,6 +361,133 @@ export function TrainerShell(props: { children: ReactNode }) {
     if (/^\/class-\d+\/(addition|subtraction|multiplication|division)(\/|$)/.test(pathname)) return 'galaxy';
     return null;
   }, [pathname]);
+
+  const bottomNavItems = useMemo(
+    () => [
+      {
+        key: 'stats' as const,
+        label: 'Статистика',
+        href: '/progress/stats',
+        iconSrc: '/icons/bottom-nav/book-stat-inactive.png',
+        iconActiveSrc: '/icons/bottom-nav/book-stat.png',
+        big: true,
+      },
+      {
+        key: 'home' as const,
+        label: 'Домой',
+        href: '/home',
+        iconSrc: '/icons/bottom-nav/rocket-inacitve.png',
+        iconActiveSrc: '/icons/bottom-nav/rocket.png',
+        big: true,
+      },
+      {
+        key: 'galaxy' as const,
+        label: 'Галактика',
+        href: galaxyNavHref,
+        iconSrc: '/icons/bottom-nav/map-inactive.png',
+        iconActiveSrc: '/icons/bottom-nav/map.png',
+        big: true,
+      },
+      {
+        key: 'achievements' as const,
+        label: 'Достижения',
+        href: '/progress/achievements',
+        iconSrc: '/icons/bottom-nav/trophy-inactive.png',
+        iconActiveSrc: '/icons/bottom-nav/trophy.png',
+      },
+      {
+        key: 'settings' as const,
+        label: 'Настройки',
+        href: '/settings',
+        // У этого набора файлов цвета "active/inactive" перепутаны относительно названия.
+        iconSrc: '/icons/bottom-nav/settings.png',
+        iconActiveSrc: '/icons/bottom-nav/settings-inactive.png',
+        big: true,
+      },
+    ],
+    [galaxyNavHref],
+  );
+
+  const [bottomPressedKey, setBottomPressedKey] = useState<string | null>(null);
+  useEffect(() => {
+    setBottomPressedKey(null);
+  }, [pathname]);
+
+  const bottomIndicatorKey = bottomPressedKey ?? bottomActiveKey;
+  const bottomIndicatorIndex = useMemo(() => {
+    if (!bottomIndicatorKey) return -1;
+    return bottomNavItems.findIndex((x) => x.key === bottomIndicatorKey);
+  }, [bottomIndicatorKey, bottomNavItems]);
+
+  const bottomIconsLayerRef = useRef<HTMLDivElement | null>(null);
+  const bottomItemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
+  const bottomIndicatorSideRef = useRef<number>(0);
+  const [bottomIndicator, setBottomIndicator] = useState<{ x: number; y: number; w: number; h: number; visible: boolean }>({
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+    visible: false,
+  });
+
+  const [statusTime, setStatusTime] = useState(() => {
+    const d = new Date();
+    return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(d);
+  });
+
+  useEffect(() => {
+    const fmt = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const tick = () => setStatusTime(fmt.format(new Date()));
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!useBottomNav) return;
+    // Recompute on mount/resize (e.g., font load / viewport changes).
+    bottomIndicatorSideRef.current = 0;
+    const layer = bottomIconsLayerRef.current;
+    const el = bottomItemRefs.current[bottomIndicatorIndex] || null;
+    if (!layer || !el || bottomIndicatorIndex < 0) {
+      setBottomIndicator((p) => (p.visible ? { ...p, visible: false } : p));
+      return;
+    }
+
+    const update = () => {
+      const layerRect = layer.getBoundingClientRect();
+      const targetRect = el.getBoundingClientRect();
+
+      // Keep the indicator size constant across items; derive once from the largest item.
+      let side = bottomIndicatorSideRef.current || 0;
+      if (!side) {
+        let maxW = 0;
+        let maxH = 0;
+        for (const a of bottomItemRefs.current) {
+          if (!a) continue;
+          const r = a.getBoundingClientRect();
+          maxW = Math.max(maxW, r.width);
+          maxH = Math.max(maxH, r.height);
+        }
+        const base = Math.max(maxW, maxH);
+        // +1.2x to fit "Достижения" and keep a roomy, phone-like selection square.
+        side = Math.ceil(base * 1.2);
+        bottomIndicatorSideRef.current = side;
+      }
+
+      const x = targetRect.left - layerRect.left + (targetRect.width - side) / 2;
+      const y = targetRect.top - layerRect.top + (targetRect.height - side) / 2;
+      setBottomIndicator({ x, y, w: side, h: side, visible: true });
+    };
+
+    update();
+    const onResize = () => {
+      bottomIndicatorSideRef.current = 0;
+      update();
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [useBottomNav, bottomIndicatorIndex]);
 
   return (
     <div
@@ -744,93 +911,101 @@ export function TrainerShell(props: { children: ReactNode }) {
         <main className="flex-1">{props.children}</main>
       </div>
 
+      {useBottomNav && galaxyBgClass === 'space-bg-green' ? (
+        <>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-x-0 top-0 z-40 h-[40vh] space-dust-green-top"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-[75vh] space-dust-green-bottom"
+          />
+        </>
+      ) : null}
+
       {useBottomNav ? (
-        <nav className="fixed bottom-0 left-0 right-0 z-50">
-          <div className="relative w-full">
-            {/* Underlay base (full width, shorter height) */}
-            <div className="w-full bg-neutral-900/55 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_60px_rgba(0,0,0,0.55)] rounded-t-[36px] pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-              <div className="h-[72px] md:h-[80px]" />
+        <nav className="fixed bottom-0 left-0 right-0 z-50 overflow-visible">
+          <div className="relative w-full overflow-visible">
+            {/* Base underlay (slightly inset from edges) */}
+            <div className="relative z-0 px-4 md:px-8 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)] h-[116px] md:h-[120px]">
+              <div className="relative h-full mx-auto max-w-6xl">
+                {/* Push base down so bottom edge is not visible */}
+                <div className="dash-base absolute inset-x-0 -bottom-[44px] h-[100px] md:h-[100px]" />
+              </div>
             </div>
 
-            {/* Screen (panel image) protruding above the base */}
-            <div
-              className="absolute left-1/2 -translate-x-1/2 top-0 -translate-y-[64px]"
-              style={{ width: 'min(calc(92vw * 1.05), calc(760px * 1.05))' }}
-            >
-              <div className="relative h-[168px] md:h-[182px]">
-                {/* Panel image */}
-                <div className="absolute inset-0 rounded-[28px] overflow-hidden pointer-events-none">
-                  <img src="/ui/panel-bar.png" alt="" aria-hidden="true" className="w-full h-full object-contain" draggable={false} />
+            {/* Screen overlay (centered, shifted up like a car dash) */}
+            <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+12px)] -translate-y-[6px] w-[min(92vw,48rem)]">
+              <div className="dash-screen animate-dash-enter h-[184px] md:h-[196px] shadow-[0_22px_60px_rgba(0,0,0,0.55)]">
+                {/* Decorative iPhone-like status bar */}
+                <div
+                  className="animate-dash-fade pointer-events-none absolute right-6 top-4 z-20 flex items-center gap-2 text-[11px] font-semibold text-white/80"
+                  style={{ animationDelay: '220ms' }}
+                >
+                  <span className="tabular-nums">{statusTime}</span>
+                  <span className="text-[9px] tracking-wide text-white/70">LTE</span>
+                  <Signal className="w-3.5 h-3.5 text-white/75" />
                 </div>
 
-                {/* Icons layer */}
-                <div className="relative z-10 h-full grid grid-cols-5 place-items-center px-8 pt-6 pb-5">
-                  {[
-                    {
-                      key: 'stats' as const,
-                      label: 'Статистика',
-                      href: '/progress/stats',
-                      iconSrc: '/icons/bottom-nav/book-stat-inactive.png',
-                      iconActiveSrc: '/icons/bottom-nav/book-stat.png',
-                      big: true,
-                    },
-                    {
-                      key: 'home' as const,
-                      label: 'Домой',
-                      href: '/home',
-                      iconSrc: '/icons/bottom-nav/rocket-inacitve.png',
-                      iconActiveSrc: '/icons/bottom-nav/rocket.png',
-                      big: true,
-                    },
-                    {
-                      key: 'galaxy' as const,
-                      label: 'Галактика',
-                      href: galaxyHref,
-                      iconSrc: '/icons/bottom-nav/map-inactive.png',
-                      iconActiveSrc: '/icons/bottom-nav/map.png',
-                      big: true,
-                    },
-                    {
-                      key: 'achievements' as const,
-                      label: 'Достижения',
-                      href: '/progress/achievements',
-                      iconSrc: '/icons/bottom-nav/trophy-inactive.png',
-                      iconActiveSrc: '/icons/bottom-nav/trophy.png',
-                    },
-                    {
-                      key: 'settings' as const,
-                      label: 'Настройки',
-                      href: '/settings',
-                      // У этого набора файлов цвета "active/inactive" перепутаны относительно названия.
-                      iconSrc: '/icons/bottom-nav/settings.png',
-                      iconActiveSrc: '/icons/bottom-nav/settings-inactive.png',
-                      big: true,
-                    },
-                  ].map((item) => {
+                {/* Icons */}
+                <div
+                  ref={bottomIconsLayerRef}
+                  className="animate-dash-fade relative z-10 h-full grid grid-cols-5 place-items-center px-6 pt-8 pb-5"
+                  style={{ animationDelay: '280ms' }}
+                >
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      'pointer-events-none absolute left-0 top-0 z-0',
+                      'rounded-2xl bg-white/10 border border-white/15',
+                      'shadow-[0_10px_28px_rgba(0,0,0,0.45)]',
+                      'transition-transform duration-300 ease-out',
+                      bottomIndicator.visible ? 'opacity-100' : 'opacity-0',
+                    )}
+                    style={{
+                      width: `${bottomIndicator.w}px`,
+                      height: `${bottomIndicator.h}px`,
+                      transform: `translate3d(${bottomIndicator.x}px, ${bottomIndicator.y}px, 0)`,
+                      willChange: 'transform',
+                    }}
+                  />
+
+                  {bottomNavItems.map((item, idx) => {
                     const active = bottomActiveKey === item.key;
                     return (
                       <Link
                         key={item.key}
                         href={item.href}
+                        ref={(el) => {
+                          bottomItemRefs.current[idx] = el;
+                        }}
+                        onClick={() => setBottomPressedKey(item.key)}
                         className={cn(
-                          'flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 transition-opacity',
+                          'animate-dash-item pointer-events-auto relative z-10 flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 transition-opacity',
                           active ? 'opacity-100' : 'opacity-70 hover:opacity-100',
                         )}
+                        style={{ animationDelay: `${320 + idx * 55}ms` }}
                         aria-current={active ? 'page' : undefined}
                         aria-label={item.label}
                       >
-                        <img
-                          src={active ? item.iconActiveSrc : item.iconSrc}
-                          alt=""
-                          aria-hidden="true"
-                          className={item.big ? 'w-[62px] h-[62px]' : 'w-12 h-12'}
-                          draggable={false}
-                        />
-                        {active ? (
-                          <span className="text-[12px] leading-none font-semibold text-foreground">{item.label}</span>
-                        ) : (
-                          <span aria-hidden="true" className="h-[12px]" />
-                        )}
+                        <div className="h-[88px] flex items-center justify-center">
+                          <img
+                            src={active ? item.iconActiveSrc : item.iconSrc}
+                            alt=""
+                            aria-hidden="true"
+                            className={item.big ? 'w-[88px] h-[88px]' : 'w-[68px] h-[68px]'}
+                            draggable={false}
+                          />
+                        </div>
+                        <span
+                          className={cn(
+                            'mt-1 text-[11px] leading-none uppercase tracking-wide',
+                            active ? 'font-semibold text-foreground' : 'font-medium text-white/45',
+                          )}
+                        >
+                          {item.label}
+                        </span>
                       </Link>
                     );
                   })}

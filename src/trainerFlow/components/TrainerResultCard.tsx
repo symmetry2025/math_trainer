@@ -1,6 +1,6 @@
 'use client';
 
-import { Gem, RotateCcw, Trophy, XCircle } from 'lucide-react';
+import { RotateCcw, Trophy, XCircle } from 'lucide-react';
 
 import type { SessionResult } from '../types';
 import { cn } from '../../lib/utils';
@@ -32,12 +32,18 @@ export function TrainerResultCard(props: {
   const mistakes = metrics.mistakes ?? undefined;
   const timeSec = metrics.timeSec ?? undefined;
   const stars = metrics.starsEarned ?? undefined;
-  const crystalsEarned = Math.max(0, Math.floor(Number(metrics.crystalsEarned ?? 0)));
 
   const isRace = String(props.presetId || '').startsWith('race:');
-  const isAccuracy = props.presetId === 'accuracy' || props.presetId === 'accuracy-input';
-  const isSpeed = props.presetId === 'speed';
-  const showCrystals = isAccuracy || isSpeed;
+  const isAccuracy = props.presetId === 'accuracy' || props.presetId === 'accuracy-input' || props.presetId === 'lvl2';
+  const starsAwarded = (() => {
+    if (!success) return undefined;
+    if (isRace) {
+      const n = Math.max(1, Math.min(3, Math.floor(Number(String(props.presetId).split(':')[1] || 0))));
+      return typeof stars === 'number' ? stars : n || undefined;
+    }
+    if (isAccuracy) return typeof stars === 'number' ? stars : 1;
+    return typeof stars === 'number' ? stars : undefined;
+  })();
 
   return (
     <div className="card-elevated p-6 md:p-8 text-center space-y-6 animate-scale-in">
@@ -82,18 +88,10 @@ export function TrainerResultCard(props: {
           </div>
         ) : null}
 
-        {isRace && typeof stars === 'number' ? (
+        {typeof starsAwarded === 'number' ? (
           <div className="p-4 rounded-2xl bg-accent/10">
-            <div className="text-2xl font-bold tabular-nums">{stars}</div>
+            <div className="text-2xl font-bold tabular-nums">{starsAwarded}</div>
             <div className="text-sm text-muted-foreground">Звёзды</div>
-          </div>
-        ) : showCrystals ? (
-          <div className="p-4 rounded-2xl bg-accent/10">
-            <div className="flex items-center justify-center gap-2">
-              <div className="text-2xl font-bold tabular-nums">+{crystalsEarned}</div>
-              <Gem className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <div className="text-sm text-muted-foreground">Кристаллы</div>
           </div>
         ) : null}
       </div>
